@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/vehicle_provider.dart';
+import 'providers/user_provider.dart';
+import 'providers/client_provider.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/screens/login_screen.dart';
 
@@ -19,6 +21,8 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => OrderProvider()..fetchOrders()),
         ChangeNotifierProvider(create: (_) => VehicleProvider()..fetchVehicles()),
+        ChangeNotifierProvider(create: (_) => UserProvider()..fetchUsers()),
+        ChangeNotifierProvider(create: (_) => ClientProvider()..fetchClients()),
       ],
       child: MaterialApp(
         title: 'Qúbico Transportes',

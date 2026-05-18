@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../../providers/order_provider.dart';
@@ -13,6 +15,11 @@ import '../theme/app_theme.dart';
 import 'login_screen.dart';
 import 'fleet_management_screen.dart';
 import 'order_detail_screen.dart';
+import 'user_management_screen.dart';
+import 'reports_screen.dart';
+import '../../providers/client_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../models/client_model.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -44,6 +51,22 @@ class AdminDashboardScreen extends StatelessWidget {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const FleetManagementScreen()));
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.people),
+              title: const Text('Usuarios'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.analytics),
+              title: const Text('Reportes'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+              },
+            ),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: AppTheme.errorColor),
@@ -64,42 +87,28 @@ class AdminDashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatCards(context),
+            _buildTopResumen(context),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () {
-                final orders = context.read<OrderProvider>().orders;
-                PdfService.generateDailyReport(orders);
-              },
-              icon: const Icon(Icons.picture_as_pdf),
-              label: const Text('GENERAR REPORTE DIARIO PDF'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-                side: const BorderSide(color: Colors.red),
-                foregroundColor: Colors.red,
-              ),
-            ),
+            _buildInteractiveMap(context),
+            const SizedBox(height: 16),
+            _buildCriticalAlerts(context),
             const SizedBox(height: 32),
             const Text(
-              'GESTIÓN DE DESPACHOS',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBlue),
+              'MÓDULO DE GESTIÓN DE PEDIDOS',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBlue, fontSize: 18),
             ),
             const Divider(),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => _showAddOrderDialog(context),
               icon: const Icon(Icons.add),
-              label: const Text('REGISTRAR NUEVO PEDIDO'),
+              label: const Text('REGISTRAR NUEVO DESPACHO'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
+                backgroundColor: AppTheme.accentOrange,
               ),
             ),
-            const SizedBox(height: 32),
-            const Text(
-              'REPORTE DE PUNTUALIDAD',
-              style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBlue),
-            ),
-            const Divider(),
+            const SizedBox(height: 16),
             _buildOrderList(context),
           ],
         ),
@@ -107,20 +116,148 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCards(BuildContext context) {
+  Widget _buildTopResumen(BuildContext context) {
     final provider = context.watch<OrderProvider>();
-    final total = provider.orders.length;
     final delivered = provider.orders.where((o) => o.status == 'Entregado').length;
-    final incidents = provider.orders.where((o) => o.status == 'Incidencia').length;
+    final delayed = provider.orders.where((o) => provider.getPunctualityStatus(o).contains('Atrasado')).length;
+    final totalFinished = provider.orders.where((o) => o.status == 'Entregado' || o.status == 'Incidencia').length;
+    
+    // KPI Puntualidad
+    double kpi = 0;
+    if (totalFinished > 0) {
+      kpi = ((delivered - delayed) / totalFinished).clamp(0.0, 1.0) * 100;
+    }
 
+    final fleet = context.watch<VehicleProvider>().vehicles.length;
+    final activeOrders = provider.orders.where((o) => o.status == 'En camino').length;
+    
     return Row(
       children: [
-        _statCard('TOTAL', total.toString(), AppTheme.primaryBlue),
-        const SizedBox(width: 12),
-        _statCard('ENTREGADOS', delivered.toString(), Colors.green),
-        const SizedBox(width: 12),
-        _statCard('INCIDENCIAS', incidents.toString(), AppTheme.errorColor),
+        Expanded(
+          child: Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const Text('KPI Puntualidad Mensual', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 8),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        height: 60,
+                        width: 60,
+                        child: CircularProgressIndicator(
+                          value: totalFinished == 0 ? 0 : kpi / 100,
+                          strokeWidth: 8,
+                          backgroundColor: Colors.grey[200],
+                          color: kpi > 80 ? Colors.green : (kpi > 50 ? AppTheme.accentOrange : AppTheme.errorColor),
+                        ),
+                      ),
+                      Text('${kpi.toStringAsFixed(1)}%', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Estado de la Flota', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  Text('$activeOrders / $fleet', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppTheme.primaryBlue)),
+                  const Text('Camionetas en ruta', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildInteractiveMap(BuildContext context) {
+    return Card(
+      elevation: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('Mapa Interactivo (Tiempo Real)', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+          ),
+          Container(
+            height: 250,
+            width: double.infinity,
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: const ll.LatLng(-33.4489, -70.6693), // Santiago central
+                initialZoom: 11.0,
+                maxZoom: 18.0,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.qubico',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: const ll.LatLng(-33.4489, -70.6693),
+                      child: const Icon(Icons.local_shipping, color: AppTheme.accentOrange, size: 30),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCriticalAlerts(BuildContext context) {
+    final provider = context.watch<OrderProvider>();
+    final criticalOrders = provider.orders.where((o) {
+      if (o.status == 'Entregado' || o.status == 'Anulado') return false;
+      return provider.getPunctualityStatus(o).contains('Atrasado');
+    }).toList();
+
+    if (criticalOrders.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.errorColor.withOpacity(0.1),
+        border: Border.all(color: AppTheme.errorColor),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.warning, color: AppTheme.errorColor),
+              SizedBox(width: 8),
+              Text('Panel de Alertas Críticas (>15 min atraso)', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.errorColor)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...criticalOrders.map((o) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text('• Pedido #${o.id} - ${o.address}', style: const TextStyle(color: Colors.red)),
+          )).toList(),
+        ],
+      ),
     );
   }
 
@@ -234,10 +371,30 @@ class AdminDashboardScreen extends StatelessWidget {
     String selectedWindow = orderToEdit?.timeWindow ?? '08:00 - 10:00';
     String selectedLoad = orderToEdit?.loadType ?? 'Paquetería';
 
-    final vehicles = context.read<VehicleProvider>().vehicles;
+    final clients = context.read<ClientProvider>().clients;
+    Client? selectedClient;
+    if (orderToEdit != null) {
+      try {
+        selectedClient = clients.firstWhere((c) => c.rut == orderToEdit.clientId);
+      } catch (e) {
+        selectedClient = clients.isNotEmpty ? clients.first : null;
+      }
+    } else {
+      selectedClient = clients.isNotEmpty ? clients.first : null;
+    }
+    rutController.text = selectedClient?.rut ?? '';
+
+    final users = context.read<UserProvider>().users;
+    final activeDriverNames = users.where((u) => u.isActive).map((u) => u.fullName).toSet();
+    final vehicles = context.read<VehicleProvider>().vehicles.where((v) => activeDriverNames.contains(v.driverName)).toList();
+    
     Vehicle? selectedVehicle;
     if (orderToEdit != null && orderToEdit.driverId != null) {
-      selectedVehicle = vehicles.firstWhere((v) => v.driverName == orderToEdit.driverId, orElse: () => vehicles.first);
+      try {
+        selectedVehicle = vehicles.firstWhere((v) => v.driverName == orderToEdit.driverId);
+      } catch (e) {
+        selectedVehicle = vehicles.isNotEmpty ? vehicles.first : null;
+      }
     } else {
       selectedVehicle = vehicles.isNotEmpty ? vehicles.first : null;
     }
@@ -259,16 +416,23 @@ class AdminDashboardScreen extends StatelessWidget {
                 children: [
                   const Text('DATOS DEL CLIENTE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
                   const Divider(),
-                  TextFormField(
-                    controller: clientNameController,
-                    decoration: const InputDecoration(labelText: 'Nombre / Razón Social'),
-                    validator: (v) => Validators.validateRequired(v, 'El nombre'),
+                  DropdownButtonFormField<Client>(
+                    value: selectedClient,
+                    items: clients.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
+                    onChanged: (v) {
+                      setDialogState(() {
+                        selectedClient = v!;
+                        rutController.text = v.rut;
+                      });
+                    },
+                    decoration: const InputDecoration(labelText: 'Cliente *'),
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: rutController,
                     decoration: const InputDecoration(labelText: 'RUT Cliente'),
                     validator: Validators.validateRut,
+                    readOnly: true, // Auto-filled from Client Dropdown
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -411,7 +575,7 @@ class AdminDashboardScreen extends StatelessWidget {
                 if (weight > maxWeight) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Error: El peso ($weight kg) supera la capacidad del ${selectedVehicle!.name} ($maxWeight kg).'),
+                      content: Text('Error: El peso ingresado (${weight}kg) supera la capacidad máxima del vehículo asignado (${maxWeight}kg)'),
                       backgroundColor: AppTheme.errorColor,
                     ),
                   );
