@@ -1,12 +1,14 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as ll;
-import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../models/order_model.dart';
 import '../../providers/order_provider.dart';
 import '../theme/app_theme.dart';
@@ -55,7 +57,9 @@ class _MapScreenState extends State<MapScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Los permisos de ubicación están denegados permanentemente.');
+        throw Exception(
+          'Los permisos de ubicación están denegados permanentemente.',
+        );
       }
 
       final position = await Geolocator.getCurrentPosition(
@@ -64,12 +68,15 @@ class _MapScreenState extends State<MapScreen> {
       final currentLatLng = ll.LatLng(position.latitude, position.longitude);
 
       final today = DateTime.now();
-      var orders = Provider.of<OrderProvider>(context, listen: false).orders.where((o) =>
-        o.scheduledDate.year == today.year &&
-        o.scheduledDate.month == today.month &&
-        o.scheduledDate.day == today.day
-      ).toList();
-      
+      var orders = Provider.of<OrderProvider>(context, listen: false).orders
+          .where(
+            (o) =>
+                o.scheduledDate.year == today.year &&
+                o.scheduledDate.month == today.month &&
+                o.scheduledDate.day == today.day,
+          )
+          .toList();
+
       // Si se pasa un pedido específico, solo mostramos ese en la ruta
       if (widget.selectedOrder != null) {
         orders = [widget.selectedOrder!];
@@ -97,7 +104,9 @@ class _MapScreenState extends State<MapScreen> {
         final order = orders[i];
         try {
           // Buscamos la dirección (agregando ciudad y país para más precisión)
-          final locations = await locationFromAddress('${order.address}, Santiago, Chile');
+          final locations = await locationFromAddress(
+            '${order.address}, Santiago, Chile',
+          );
           if (locations.isNotEmpty) {
             final loc = locations.first;
             final coord = ll.LatLng(loc.latitude, loc.longitude);
@@ -130,8 +139,12 @@ class _MapScreenState extends State<MapScreen> {
       List<ll.LatLng> polylinePoints = [];
       if (waypoints.length > 1) {
         // OSRM usa formato lon,lat
-        final coordsString = waypoints.map((p) => '${p.longitude},${p.latitude}').join(';');
-        final url = Uri.parse('http://router.project-osrm.org/route/v1/driving/$coordsString?overview=full&geometries=geojson');
+        final coordsString = waypoints
+            .map((p) => '${p.longitude},${p.latitude}')
+            .join(';');
+        final url = Uri.parse(
+          'http://router.project-osrm.org/route/v1/driving/$coordsString?overview=full&geometries=geojson',
+        );
 
         final response = await http.get(url);
         if (response.statusCode == 200) {
@@ -163,12 +176,15 @@ class _MapScreenState extends State<MapScreen> {
 
       // Centrar el mapa en la posición actual
       _mapController.move(currentLatLng, 13.0);
-
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}')),
+          SnackBar(
+            content: Text(
+              'Error: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
+          ),
         );
       }
     }
@@ -227,7 +243,10 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _currentLocation() async {
     try {
       final position = await Geolocator.getCurrentPosition();
-      _mapController.move(ll.LatLng(position.latitude, position.longitude), 15.0);
+      _mapController.move(
+        ll.LatLng(position.latitude, position.longitude),
+        15.0,
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo obtener la ubicación')),
@@ -251,7 +270,11 @@ class _MapScreenState extends State<MapScreen> {
         children: [
           FlutterMap(
             mapController: _mapController,
-            options: MapOptions(initialCenter: _santiago, initialZoom: 12.0, maxZoom: 18.0),
+            options: MapOptions(
+              initialCenter: _santiago,
+              initialZoom: 12.0,
+              maxZoom: 18.0,
+            ),
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -286,19 +309,32 @@ class _MapScreenState extends State<MapScreen> {
             FloatingActionButton.extended(
               heroTag: 'btn_gmaps',
               onPressed: () async {
-                final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(widget.selectedOrder!.address + ", Santiago, Chile")}');
+                final url = Uri.parse(
+                  'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent("${widget.selectedOrder!.address}, Santiago, Chile")}',
+                );
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               },
-              label: const Text('Navegar con Google Maps', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: const Text(
+                'Navegar con Google Maps',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               icon: const Icon(Icons.directions, color: Colors.white),
               backgroundColor: Colors.blue,
             ),
-          if (widget.selectedOrder != null)
-            const SizedBox(height: 16),
+          if (widget.selectedOrder != null) const SizedBox(height: 16),
           FloatingActionButton.extended(
             heroTag: 'btn_back',
             onPressed: () => Navigator.pop(context),
-            label: const Text('VOLVER A LISTA', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            label: const Text(
+              'VOLVER A LISTA',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             icon: const Icon(Icons.list, color: Colors.white),
             backgroundColor: AppTheme.accentOrange,
           ),
@@ -308,4 +344,3 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 }
-

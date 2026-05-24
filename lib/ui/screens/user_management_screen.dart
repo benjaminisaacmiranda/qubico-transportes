@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/user_provider.dart';
+
 import '../../models/user_model.dart';
+import '../../providers/user_provider.dart';
 import '../../utils/validators.dart';
 import '../theme/app_theme.dart';
 
@@ -12,7 +13,8 @@ class UserManagementScreen extends StatefulWidget {
   State<UserManagementScreen> createState() => _UserManagementScreenState();
 }
 
-class _UserManagementScreenState extends State<UserManagementScreen> with SingleTickerProviderStateMixin {
+class _UserManagementScreenState extends State<UserManagementScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -42,10 +44,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildAccountsTab(),
-          _buildAuditTab(),
-        ],
+        children: [_buildAccountsTab(), _buildAuditTab()],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddUserDialog(),
@@ -70,14 +69,23 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: user.isActive ? AppTheme.primaryBlue : Colors.grey,
+                  backgroundColor: user.isActive
+                      ? AppTheme.primaryBlue
+                      : Colors.grey,
                   child: const Icon(Icons.person, color: Colors.white),
                 ),
-                title: Text(user.fullName, style: TextStyle(
-                  decoration: user.isActive ? TextDecoration.none : TextDecoration.lineThrough,
-                  color: user.isActive ? Colors.black : Colors.grey,
-                )),
-                subtitle: Text('${user.email}\nRol: ${user.role.name.toUpperCase()}'),
+                title: Text(
+                  user.fullName,
+                  style: TextStyle(
+                    decoration: user.isActive
+                        ? TextDecoration.none
+                        : TextDecoration.lineThrough,
+                    color: user.isActive ? Colors.black : Colors.grey,
+                  ),
+                ),
+                subtitle: Text(
+                  '${user.email}\nRol: ${user.role.name.toUpperCase()}',
+                ),
                 isThreeLine: true,
                 trailing: Switch(
                   value: user.isActive,
@@ -101,7 +109,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
           child: ListTile(
             leading: Icon(Icons.history, color: AppTheme.primaryBlue),
             title: Text('Auditoría del Sistema'),
-            subtitle: Text('El usuario [Admin_Luis] modificó el [Estado_Pedido] del ID #450 de [Pendiente] a [Anulado] el día 18/05/2026 a las 14:00 hrs.'),
+            subtitle: Text(
+              'El usuario [Admin_Luis] modificó el [Estado_Pedido] del ID #450 de [Pendiente] a [Anulado] el día 18/05/2026 a las 14:00 hrs.',
+            ),
           ),
         ),
       ],
@@ -134,13 +144,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Nombre Completo'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre Completo',
+                  ),
                   validator: (v) => Validators.validateRequired(v, 'El nombre'),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Correo Electrónico'),
+                  decoration: const InputDecoration(
+                    labelText: 'Correo Electrónico',
+                  ),
                   validator: Validators.validateEmail,
                 ),
                 const SizedBox(height: 8),
@@ -151,20 +165,33 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Requerido';
                     if (v.length < 8) return 'Mínimo 8 caracteres';
-                    if (!v.contains(RegExp(r'[A-Z]'))) return 'Debe contener una mayúscula';
-                    if (!v.contains(RegExp(r'[0-9]'))) return 'Debe contener un número';
+                    if (!v.contains(RegExp(r'[A-Z]')))
+                      return 'Debe contener una mayúscula';
+                    if (!v.contains(RegExp(r'[0-9]')))
+                      return 'Debe contener un número';
                     return null;
                   },
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<UserRole>(
-                  value: selectedRole,
+                  initialValue: selectedRole,
                   items: UserRole.values
-                      .where((role) => role == UserRole.admin || role == UserRole.conductor)
-                      .map((role) => DropdownMenuItem(
-                        value: role,
-                        child: Text(role == UserRole.admin ? 'ADMINISTRADOR' : 'CONDUCTOR'),
-                      )).toList(),
+                      .where(
+                        (role) =>
+                            role == UserRole.admin ||
+                            role == UserRole.conductor,
+                      )
+                      .map(
+                        (role) => DropdownMenuItem(
+                          value: role,
+                          child: Text(
+                            role == UserRole.admin
+                                ? 'ADMINISTRADOR'
+                                : 'CONDUCTOR',
+                          ),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (v) => selectedRole = v!,
                   decoration: const InputDecoration(labelText: 'Rol'),
                 ),

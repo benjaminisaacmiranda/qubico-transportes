@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/vehicle_model.dart';
-import '../../providers/vehicle_provider.dart';
+
 import '../../models/user_model.dart';
+import '../../models/vehicle_model.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/vehicle_provider.dart';
 import '../theme/app_theme.dart';
 
 class FleetManagementScreen extends StatelessWidget {
@@ -12,21 +13,34 @@ class FleetManagementScreen extends StatelessWidget {
   void _showVehicleDialog(BuildContext context, {Vehicle? vehicle}) {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: vehicle?.name ?? '');
-    final patenteController = TextEditingController(text: vehicle?.patente ?? '');
-    final weightController = TextEditingController(text: vehicle?.maxWeight.toString() ?? '');
-    
+    final patenteController = TextEditingController(
+      text: vehicle?.patente ?? '',
+    );
+    final weightController = TextEditingController(
+      text: vehicle?.maxWeight.toString() ?? '',
+    );
+
     final users = context.read<UserProvider>().users;
-    final drivers = users.where((u) => u.isActive && u.role == UserRole.conductor).toList();
-    
+    final drivers = users
+        .where((u) => u.isActive && u.role == UserRole.conductor)
+        .toList();
+
     String? selectedDriverName = vehicle?.driverName;
     if (selectedDriverName != null && selectedDriverName.isEmpty) {
       selectedDriverName = null;
     }
-    
+
     // Si el conductor asignado previamente ya no existe o está inactivo, lo agregamos temporalmente para evitar error visual
     bool driverExists = drivers.any((d) => d.fullName == selectedDriverName);
     if (selectedDriverName != null && !driverExists) {
-      drivers.add(User(id: 'temp', fullName: selectedDriverName, email: '', role: UserRole.conductor));
+      drivers.add(
+        User(
+          id: 'temp',
+          fullName: selectedDriverName,
+          email: '',
+          role: UserRole.conductor,
+        ),
+      );
     }
 
     showDialog(
@@ -40,7 +54,9 @@ class FleetManagementScreen extends StatelessWidget {
             children: [
               TextFormField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: 'Nombre (Ej: Furgón A)'),
+                decoration: const InputDecoration(
+                  labelText: 'Nombre (Ej: Furgón A)',
+                ),
                 validator: (v) => v!.isEmpty ? 'Requerido' : null,
               ),
               const SizedBox(height: 8),
@@ -52,14 +68,18 @@ class FleetManagementScreen extends StatelessWidget {
               const SizedBox(height: 8),
               TextFormField(
                 controller: weightController,
-                decoration: const InputDecoration(labelText: 'Capacidad Máxima (kg)'),
+                decoration: const InputDecoration(
+                  labelText: 'Capacidad Máxima (kg)',
+                ),
                 keyboardType: TextInputType.number,
                 validator: (v) => v!.isEmpty ? 'Requerido' : null,
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: selectedDriverName,
-                decoration: const InputDecoration(labelText: 'Conductor Asignado'),
+                initialValue: selectedDriverName,
+                decoration: const InputDecoration(
+                  labelText: 'Conductor Asignado',
+                ),
                 items: drivers.map((driver) {
                   return DropdownMenuItem<String>(
                     value: driver.fullName,
@@ -75,7 +95,10 @@ class FleetManagementScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCELAR')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCELAR'),
+          ),
           ElevatedButton(
             onPressed: () {
               if (formKey.currentState!.validate()) {
@@ -106,9 +129,7 @@ class FleetManagementScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestión de Flota'),
-      ),
+      appBar: AppBar(title: const Text('Gestión de Flota')),
       body: Consumer<VehicleProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
@@ -126,13 +147,23 @@ class FleetManagementScreen extends StatelessWidget {
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
-                  leading: const Icon(Icons.local_shipping, color: AppTheme.primaryBlue, size: 32),
-                  title: Text('${vehicle.name} (${vehicle.patente})', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Max: ${vehicle.maxWeight} kg\nConductor: ${vehicle.driverName}'),
+                  leading: const Icon(
+                    Icons.local_shipping,
+                    color: AppTheme.primaryBlue,
+                    size: 32,
+                  ),
+                  title: Text(
+                    '${vehicle.name} (${vehicle.patente})',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    'Max: ${vehicle.maxWeight} kg\nConductor: ${vehicle.driverName}',
+                  ),
                   isThreeLine: true,
                   trailing: IconButton(
                     icon: const Icon(Icons.edit, color: Colors.grey),
-                    onPressed: () => _showVehicleDialog(context, vehicle: vehicle),
+                    onPressed: () =>
+                        _showVehicleDialog(context, vehicle: vehicle),
                   ),
                 ),
               );

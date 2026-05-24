@@ -1,8 +1,6 @@
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/order_model.dart';
-import '../models/client_model.dart';
-import '../models/user_model.dart';
+import 'package:sqflite/sqflite.dart';
+
 import 'security_service.dart';
 
 class DatabaseService {
@@ -26,21 +24,27 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (db, version) async {
         print('DEBUG QUBICO: onCreate triggered for version $version');
         await _createDB(db, version);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        print('DEBUG QUBICO: onUpgrade triggered from $oldVersion to $newVersion');
+        print(
+          'DEBUG QUBICO: onUpgrade triggered from $oldVersion to $newVersion',
+        );
         if (oldVersion < 5) {
-          print('DEBUG QUBICO: Purging older tables to upgrade schema to v5...');
+          print(
+            'DEBUG QUBICO: Purging older tables to upgrade schema to v5...',
+          );
           await db.execute('DROP TABLE IF EXISTS orders');
           await db.execute('DROP TABLE IF EXISTS clients');
           await db.execute('DROP TABLE IF EXISTS users');
           await db.execute('DROP TABLE IF EXISTS vehicles');
           await db.execute('DROP TABLE IF EXISTS audit_logs');
-          print('DEBUG QUBICO: All older tables dropped. Recreating with v5...');
+          print(
+            'DEBUG QUBICO: All older tables dropped. Recreating with v5...',
+          );
           await _createDB(db, 5);
           print('DEBUG QUBICO: Recreated database successfully for v5.');
         }
@@ -64,6 +68,7 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         full_name TEXT NOT NULL,
         email TEXT NOT NULL,
+        password TEXT NOT NULL,
         role TEXT NOT NULL,
         is_active INTEGER NOT NULL
       )
@@ -115,21 +120,24 @@ class DatabaseService {
 
     // Seed default data inside a fast batch transaction
     final batch = db.batch();
-    
+
     // Default Users (Juan Perez is Conductor, Admin is Admin)
     batch.insert('users', {
       'id': '12345678-9',
       'full_name': 'Juan Perez',
-      'email': 'juan@qubico.cl',
+      'email': 'conductor@qubico.cl', //
+      'password': SecurityService.hashPassword('conductor123'), //
       'role': 'conductor',
-      'is_active': 1
+      'is_active': 1,
     });
+
     batch.insert('users', {
       'id': '98765432-1',
       'full_name': 'Admin',
       'email': 'admin@qubico.cl',
+      'password': SecurityService.hashPassword('admin123'), //
       'role': 'admin',
-      'is_active': 1
+      'is_active': 1,
     });
 
     // Default Clients
@@ -138,14 +146,14 @@ class DatabaseService {
       'name': 'Empresa Alpha',
       'phone': '912345678',
       'email': 'contacto@alpha.cl',
-      'billing_address': 'Providencia 123'
+      'billing_address': 'Providencia 123',
     });
     batch.insert('clients', {
       'rut': '98.765.432-1',
       'name': 'Logística Beta',
       'phone': '998765432',
       'email': 'ventas@beta.cl',
-      'billing_address': 'Las Condes 456'
+      'billing_address': 'Las Condes 456',
     });
 
     // Default Vehicles aligned with active Conductor names
@@ -153,13 +161,13 @@ class DatabaseService {
       'name': 'Furgón Pequeño',
       'patente': 'AB-CD-12',
       'max_weight': 300.0,
-      'driver_name': 'Juan Perez'
+      'driver_name': 'Juan Perez',
     });
     batch.insert('vehicles', {
       'name': 'Camioneta Mediana',
       'patente': 'WX-YZ-99',
       'max_weight': 800.0,
-      'driver_name': 'Conductor 2'
+      'driver_name': 'Conductor 2',
     });
 
     print('DEBUG QUBICO: Committing seed data batch...');
@@ -170,7 +178,11 @@ class DatabaseService {
   // Generic methods for CRUD
   Future<int> insert(String table, Map<String, dynamic> data) async {
     final db = await instance.database;
-    return await db.insert(table, data, conflictAlgorithm: ConflictAlgorithm.replace);
+    return await db.insert(
+      table,
+      data,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   Future<List<Map<String, dynamic>>> queryAll(String table) async {
@@ -178,7 +190,28 @@ class DatabaseService {
     return await db.query(table);
   }
 
-  Future<int> update(String table, Map<String, dynamic> data, String idColumn, dynamic idValue) async {
+  // Buscar un usuario específico por su correo electrónico
+  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+      limit: 1, // Solo queremos un usuario
+    );
+
+    if (result.isNotEmpty) {
+      return result.first; // Retorna el mapa con los datos del usuario
+    }
+    return null; // Si no existe el correo, retorna nulo
+  }
+
+  Future<int> update(
+    String table,
+    Map<String, dynamic> data,
+    String idColumn,
+    dynamic idValue,
+  ) async {
     final db = await instance.database;
     return await db.update(
       table,
@@ -190,11 +223,7 @@ class DatabaseService {
 
   Future<int> delete(String table, String idColumn, dynamic idValue) async {
     final db = await instance.database;
-    return await db.delete(
-      table,
-      where: '$idColumn = ?',
-      whereArgs: [idValue],
-    );
+    return await db.delete(table, where: '$idColumn = ?', whereArgs: [idValue]);
   }
 
   Future close() async {

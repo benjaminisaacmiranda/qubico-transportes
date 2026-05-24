@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/order_provider.dart';
-import 'providers/vehicle_provider.dart';
-import 'providers/user_provider.dart';
+
 import 'providers/client_provider.dart';
+import 'providers/order_provider.dart';
+import 'providers/user_provider.dart';
+import 'providers/vehicle_provider.dart';
+import 'routes/app_router.dart'; //
 import 'ui/theme/app_theme.dart';
-import 'ui/screens/login_screen.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => VehicleProvider()),
+        ChangeNotifierProvider(create: (_) => ClientProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -17,19 +27,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => OrderProvider()..fetchOrders()),
-        ChangeNotifierProvider(create: (_) => VehicleProvider()..fetchVehicles()),
-        ChangeNotifierProvider(create: (_) => UserProvider()..fetchUsers()),
-        ChangeNotifierProvider(create: (_) => ClientProvider()..fetchClients()),
-      ],
-      child: MaterialApp(
-        title: 'Qúbico Transportes',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const LoginScreen(),
-      ),
+    // AQUÍ ESTÁ LA MAGIA: Usamos .router y le pasamos la configuración
+    return MaterialApp.router(
+      title: 'Qúbico',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(scaffoldBackgroundColor: AppTheme.backgroundColor),
+      routerConfig: AppRouter.router, // <-- CONECTAMOS EL GOROUTER
     );
   }
 }

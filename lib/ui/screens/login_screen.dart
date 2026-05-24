@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart'; // <-- IMPORTANTE: Agregar este import
+
 import '../theme/app_theme.dart';
-import 'home_screen.dart';
-import 'admin_dashboard_screen.dart';
+
+// Ya no necesitas importar 'home_screen.dart' ni 'admin_dashboard_screen.dart' aquí
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,25 +21,21 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
+    // Las credenciales siguen apuntando a los valores institucionales fijos por ahora
     if (email == 'admin@qubico.cl' && password == 'admin123') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-      );
+      context.go('/admin'); // <-- CAMBIADO: Navegación limpia con GoRouter
     } else if (email == 'conductor@qubico.cl' && password == 'conductor123') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      context.go('/home'); // <-- CAMBIADO: Navegación limpia con GoRouter
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Credenciales incorrectas')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Credenciales incorrectas')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // El árbol de widgets del Scaffold se mantiene exactamente igual
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: Center(
@@ -84,10 +82,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   hintText: 'Contraseña',
-                  prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                  prefixIcon: const Icon(
+                    Icons.lock_outline,
+                    color: Colors.grey,
+                  ),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: Colors.grey,
                     ),
                     onPressed: () {
@@ -105,7 +108,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   minimumSize: const Size(double.infinity, 50),
                   backgroundColor: AppTheme.primaryBlue,
                 ),
-                child: const Text('INGRESAR', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                child: const Text(
+                  'INGRESAR',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
             ],

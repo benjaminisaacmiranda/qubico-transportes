@@ -1,28 +1,27 @@
 import 'dart:async';
-import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
-import '../../providers/order_provider.dart';
-import '../../providers/vehicle_provider.dart';
-import '../../providers/client_provider.dart';
-import '../../providers/user_provider.dart';
+
+import '../../models/client_model.dart';
 import '../../models/order_model.dart';
 import '../../models/vehicle_model.dart';
-import '../../models/client_model.dart';
-import '../../utils/validators.dart';
+import '../../providers/client_provider.dart';
+import '../../providers/order_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../providers/vehicle_provider.dart';
 import '../../services/pdf_service.dart';
+import '../../utils/validators.dart';
 import '../theme/app_theme.dart';
-import 'login_screen.dart';
-import 'fleet_management_screen.dart';
-import 'order_detail_screen.dart';
 import 'admin_order_detail_screen.dart';
-import 'user_management_screen.dart';
-import 'reports_screen.dart';
+import 'fleet_management_screen.dart';
 import 'home_screen.dart';
+import 'login_screen.dart';
+import 'reports_screen.dart';
+import 'user_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -47,7 +46,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final _lengthController = TextEditingController();
   final _widthController = TextEditingController();
   final _heightController = TextEditingController();
-  
+
   String? _selectedClientOption = 'manual';
   bool _isManualClient = true;
   bool _saveAsFrequent = false;
@@ -110,14 +109,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (weight > maxWeight) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: El peso ingresado (${weight}kg) supera la capacidad máxima del vehículo (${maxWeight}kg)'),
+            content: Text(
+              'Error: El peso ingresado (${weight}kg) supera la capacidad máxima del vehículo (${maxWeight}kg)',
+            ),
             backgroundColor: AppTheme.errorColor,
           ),
         );
         return;
       }
 
-      final fullAddress = "${_calleController.text.trim()} ${_numeroController.text.trim()}, ${_comunaController.text.trim()}";
+      final fullAddress =
+          "${_calleController.text.trim()} ${_numeroController.text.trim()}, ${_comunaController.text.trim()}";
 
       // Guardar como cliente frecuente si es manual y la casilla está marcada
       if (_isManualClient && _saveAsFrequent) {
@@ -143,7 +145,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       }
 
       final order = Order(
-        clientId: _rutController.text.trim().isNotEmpty ? _rutController.text.trim() : _clientNameController.text.trim(),
+        clientId: _rutController.text.trim().isNotEmpty
+            ? _rutController.text.trim()
+            : _clientNameController.text.trim(),
         address: fullAddress,
         weight: weight,
         length: double.tryParse(_lengthController.text) ?? 0.0,
@@ -158,7 +162,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       await context.read<OrderProvider>().addOrder(order);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pedido registrado y asignado exitosamente')),
+        const SnackBar(
+          content: Text('Pedido registrado y asignado exitosamente'),
+        ),
       );
 
       _resetForm();
@@ -177,11 +183,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         elevation: 0,
         leading: const Padding(
           padding: EdgeInsets.all(12.0),
-          child: Icon(Icons.local_shipping, color: AppTheme.accentOrange, size: 28),
+          child: Icon(
+            Icons.local_shipping,
+            color: AppTheme.accentOrange,
+            size: 28,
+          ),
         ),
         title: const Text(
           'Qúbico Admin',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.white,
+          ),
         ),
         actions: [
           IconButton(
@@ -223,14 +237,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppTheme.accentOrange,
         unselectedItemColor: Colors.grey,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: 'Monitor'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Nuevo'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Historial'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Ajustes'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.grid_view_rounded),
+            label: 'Inicio',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.map_outlined),
+            label: 'Monitor',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_circle_outline),
+            label: 'Nuevo',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: 'Historial',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            label: 'Ajustes',
+          ),
         ],
       ),
     );
@@ -247,7 +279,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
             child: const Text(
               'JP',
-              style: TextStyle(color: AppTheme.accentOrange, fontWeight: FontWeight.bold, fontSize: 20),
+              style: TextStyle(
+                color: AppTheme.accentOrange,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -256,7 +292,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: const [
               Text(
                 'Juan Pérez',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.black,
+                ),
               ),
               SizedBox(height: 2),
               Text(
@@ -274,9 +314,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildInicioTab() {
     final orderProvider = context.watch<OrderProvider>();
     final total = orderProvider.orders.length;
-    final enRuta = orderProvider.orders.where((o) => o.status == 'En camino').length;
-    final entregados = orderProvider.orders.where((o) => o.status == 'Entregado').length;
-    final incidencias = orderProvider.orders.where((o) => o.status == 'Incidencia').length;
+    final enRuta = orderProvider.orders
+        .where((o) => o.status == 'En camino')
+        .length;
+    final entregados = orderProvider.orders
+        .where((o) => o.status == 'Entregado')
+        .length;
+    final incidencias = orderProvider.orders
+        .where((o) => o.status == 'Incidencia')
+        .length;
 
     final criticalOrders = orderProvider.orders.where((o) {
       if (o.status == 'Entregado' || o.status == 'Anulado') return false;
@@ -288,7 +334,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       children: [
         const Text(
           'Resumen Hoy',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
         const SizedBox(height: 16),
         GridView.count(
@@ -332,7 +382,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: 24),
         const Text(
           'Alertas de Operación',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
         const SizedBox(height: 12),
         Card(
@@ -355,7 +409,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const SizedBox(height: 12),
                       const Text(
                         'Sin alertas críticas.',
-                        style: TextStyle(fontWeight: FontWeight.w500, color: Colors.black87),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
                       ),
                     ],
                   )
@@ -368,25 +425,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           SizedBox(width: 8),
                           Text(
                             'Retraso Crítico (>15 min)',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.errorColor),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.errorColor,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      ...criticalOrders.map((o) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6.0),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.arrow_right, color: AppTheme.errorColor, size: 20),
-                                Expanded(
-                                  child: Text(
-                                    'Pedido #${o.id} - ${o.address}',
-                                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+                      ...criticalOrders.map(
+                        (o) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6.0),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.arrow_right,
+                                color: AppTheme.errorColor,
+                                size: 20,
+                              ),
+                              Expanded(
+                                child: Text(
+                                  'Pedido #${o.id} - ${o.address}',
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                              ],
-                            ),
-                          )),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
           ),
@@ -422,7 +491,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 8),
             Text(
               value,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
@@ -448,12 +521,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final todayOrders = orderProvider.orders.where((o) {
         final localDate = o.scheduledDate.toLocal();
         return localDate.year == today.year &&
-               localDate.month == today.month &&
-               localDate.day == today.day;
+            localDate.month == today.month &&
+            localDate.day == today.day;
       }).toList();
 
       // Pedidos en ruta para el mapa (Flota en vivo)
-      final enRutaOrders = todayOrders.where((o) => o.status == 'En camino' || o.status == 'En Ruta').toList();
+      final enRutaOrders = todayOrders
+          .where((o) => o.status == 'En camino' || o.status == 'En Ruta')
+          .toList();
 
       return ListView(
         padding: const EdgeInsets.all(20),
@@ -463,7 +538,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               const Text(
                 'Flota en Vivo',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               OutlinedButton.icon(
                 onPressed: () {
@@ -473,11 +552,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   );
                 },
                 icon: const Icon(Icons.person_pin_circle_outlined, size: 18),
-                label: const Text('App Conductor', style: TextStyle(fontSize: 12)),
+                label: const Text(
+                  'App Conductor',
+                  style: TextStyle(fontSize: 12),
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppTheme.primaryBlue,
                   side: const BorderSide(color: AppTheme.primaryBlue),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   minimumSize: const Size(120, 36),
                 ),
               ),
@@ -494,7 +578,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             child: Column(
               children: [
-                Container(
+                SizedBox(
                   height: 180,
                   width: double.infinity,
                   child: FlutterMap(
@@ -505,15 +589,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.qubico',
                       ),
                       MarkerLayer(
                         markers: enRutaOrders
-                            .map((o) => Marker(
-                                  point: const ll.LatLng(-33.4489, -70.6693), // Ubicación simulada en Santiago
-                                  child: const Icon(Icons.local_shipping, color: AppTheme.accentOrange, size: 28),
-                                ))
+                            .map(
+                              (o) => Marker(
+                                point: const ll.LatLng(
+                                  -33.4489,
+                                  -70.6693,
+                                ), // Ubicación simulada en Santiago
+                                child: const Icon(
+                                  Icons.local_shipping,
+                                  color: AppTheme.accentOrange,
+                                  size: 28,
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
                     ],
@@ -525,23 +619,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 20),
           const Text(
             'Despachos de Hoy',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 10),
           // Agrupar pedidos de hoy por vehículo (Hoja de Ruta del Conductor)
           if (vehicleProvider.vehicles.isEmpty)
-            const Center(child: Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Text('No hay vehículos registrados para monitorear.'),
-            ))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text('No hay vehículos registrados para monitorear.'),
+              ),
+            )
           else if (todayOrders.isEmpty)
-            const Center(child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: Text('No se han generado despachos para el día de hoy.', style: TextStyle(color: Colors.grey, fontSize: 13)),
-            ))
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text(
+                  'No se han generado despachos para el día de hoy.',
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+              ),
+            )
           else
             ...vehicleProvider.vehicles.map((vehicle) {
-              final ordersForVehicle = todayOrders.where((o) => o.driverId == vehicle.driverName).toList();
+              final ordersForVehicle = todayOrders
+                  .where((o) => o.driverId == vehicle.driverName)
+                  .toList();
               if (ordersForVehicle.isEmpty) return const SizedBox.shrink();
 
               return Card(
@@ -560,7 +667,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       padding: const EdgeInsets.all(16),
                       decoration: const BoxDecoration(
                         color: AppTheme.primaryBlue,
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -570,18 +679,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             children: [
                               Text(
                                 'Ruta: R-${vehicle.id} (Centro)',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 '${vehicle.patente} • ${vehicle.driverName}',
-                                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
                           const CircleAvatar(
                             backgroundColor: Colors.white24,
-                            child: Icon(Icons.local_shipping, color: Colors.white),
+                            child: Icon(
+                              Icons.local_shipping,
+                              color: Colors.white,
+                            ),
                           ),
                         ],
                       ),
@@ -603,40 +722,65 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => AdminOrderDetailScreen(order: order),
+                                    builder: (_) =>
+                                        AdminOrderDetailScreen(order: order),
                                   ),
                                 );
                               },
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
                               title: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'PEDIDO #${order.id ?? "N/A"}',
-                                    style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12),
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: order.status == 'Entregado'
                                           ? const Color(0xFFE6F4EA)
                                           : (order.status == 'Incidencia'
-                                              ? const Color(0xFFFCE8E6)
-                                              : (order.status == 'En camino' || order.status == 'En Ruta'
-                                                  ? const Color(0xFFFFF4E5)
-                                                  : Colors.grey.shade100)),
+                                                ? const Color(0xFFFCE8E6)
+                                                : (order.status ==
+                                                              'En camino' ||
+                                                          order.status ==
+                                                              'En Ruta'
+                                                      ? const Color(0xFFFFF4E5)
+                                                      : Colors.grey.shade100)),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      order.status == 'En camino' || order.status == 'En Ruta' ? 'PRÓXIMO' : order.status.toUpperCase(),
+                                      order.status == 'En camino' ||
+                                              order.status == 'En Ruta'
+                                          ? 'PRÓXIMO'
+                                          : order.status.toUpperCase(),
                                       style: TextStyle(
                                         color: order.status == 'Entregado'
                                             ? const Color(0xFF137333)
                                             : (order.status == 'Incidencia'
-                                                ? const Color(0xFFC5221F)
-                                                : (order.status == 'En camino' || order.status == 'En Ruta'
-                                                    ? const Color(0xFFE65100)
-                                                    : Colors.grey.shade700)),
+                                                  ? const Color(0xFFC5221F)
+                                                  : (order.status ==
+                                                                'En camino' ||
+                                                            order.status ==
+                                                                'En Ruta'
+                                                        ? const Color(
+                                                            0xFFE65100,
+                                                          )
+                                                        : Colors
+                                                              .grey
+                                                              .shade700)),
                                         fontWeight: FontWeight.bold,
                                         fontSize: 10,
                                       ),
@@ -650,17 +794,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   const SizedBox(height: 6),
                                   Text(
                                     'Cliente: ${order.clientId}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 14),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                   const SizedBox(height: 6),
                                   Row(
                                     children: [
-                                      const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                                      const Icon(
+                                        Icons.location_on_outlined,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
                                           order.address,
-                                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 12,
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
@@ -669,11 +824,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      const Icon(Icons.access_time_outlined, size: 16, color: Colors.grey),
+                                      const Icon(
+                                        Icons.access_time_outlined,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         order.timeWindow,
-                                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -701,7 +863,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 16),
               Text(
                 'Error al cargar el Monitor: $e',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                  fontSize: 16,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
@@ -709,7 +875,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: SingleChildScrollView(
                   child: Text(
                     stack.toString(),
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: Colors.black54),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 10,
+                      color: Colors.black54,
+                    ),
                   ),
                 ),
               ),
@@ -724,8 +894,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildNuevoTab() {
     final clients = context.watch<ClientProvider>().clients;
     final users = context.watch<UserProvider>().users;
-    final activeDriverNames = users.where((u) => u.isActive).map((u) => u.fullName).toSet();
-    final vehicles = context.watch<VehicleProvider>().vehicles.where((v) => activeDriverNames.contains(v.driverName)).toList();
+    final activeDriverNames = users
+        .where((u) => u.isActive)
+        .map((u) => u.fullName)
+        .toSet();
+    final vehicles = context
+        .watch<VehicleProvider>()
+        .vehicles
+        .where((v) => activeDriverNames.contains(v.driverName))
+        .toList();
 
     return Form(
       key: _formKey,
@@ -734,7 +911,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         children: [
           const Text(
             'Nuevo Despacho',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 16),
           // CARD 1: CLIENTE & DIRECCIÓN
@@ -754,12 +935,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     children: const [
                       Icon(Icons.person_outline, color: AppTheme.primaryBlue),
                       SizedBox(width: 8),
-                      Text('Cliente y Dirección', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        'Cliente y Dirección',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(height: 24),
                   DropdownButtonFormField<String>(
-                    value: _selectedClientOption,
+                    initialValue: _selectedClientOption,
                     isExpanded: true,
                     items: [
                       const DropdownMenuItem<String>(
@@ -769,13 +956,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      ...clients.map((c) => DropdownMenuItem<String>(
-                        value: c.rut,
-                        child: Text(
-                          c.name,
-                          overflow: TextOverflow.ellipsis,
+                      ...clients.map(
+                        (c) => DropdownMenuItem<String>(
+                          value: c.rut,
+                          child: Text(c.name, overflow: TextOverflow.ellipsis),
                         ),
-                      )),
+                      ),
                     ],
                     onChanged: (v) {
                       setState(() {
@@ -788,7 +974,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           _emailController.clear();
                         } else {
                           _isManualClient = false;
-                          final selected = clients.firstWhere((c) => c.rut == v);
+                          final selected = clients.firstWhere(
+                            (c) => c.rut == v,
+                          );
                           _clientNameController.text = selected.name;
                           _rutController.text = selected.rut;
                           _phoneController.text = selected.phone;
@@ -796,26 +984,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         }
                       });
                     },
-                    decoration: const InputDecoration(labelText: 'Selección de Cliente (Autocompletar)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Selección de Cliente (Autocompletar)',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _clientNameController,
-                    decoration: const InputDecoration(labelText: 'Nombre del Cliente *'),
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre del Cliente *',
+                    ),
                     readOnly: !_isManualClient,
-                    validator: (v) => Validators.validateRequired(v, 'El nombre del cliente'),
+                    validator: (v) =>
+                        Validators.validateRequired(v, 'El nombre del cliente'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _rutController,
-                    decoration: const InputDecoration(labelText: 'RUT *', hintText: 'Ej: 12345678-9'),
+                    decoration: const InputDecoration(
+                      labelText: 'RUT *',
+                      hintText: 'Ej: 12345678-9',
+                    ),
                     validator: Validators.validateRut,
                     readOnly: !_isManualClient,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(labelText: 'Teléfono', prefixText: '+56 '),
+                    decoration: const InputDecoration(
+                      labelText: 'Teléfono',
+                      prefixText: '+56 ',
+                    ),
                     keyboardType: TextInputType.phone,
                     readOnly: !_isManualClient,
                   ),
@@ -849,9 +1048,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   const Divider(height: 24),
                   Row(
                     children: const [
-                      Icon(Icons.location_on_outlined, color: AppTheme.primaryBlue),
+                      Icon(
+                        Icons.location_on_outlined,
+                        color: AppTheme.primaryBlue,
+                      ),
                       SizedBox(width: 8),
-                      Text('Dirección de Entrega', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(
+                        'Dirección de Entrega',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -861,7 +1069,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       labelText: 'Calle *',
                       hintText: 'Ej: Av. Providencia',
                     ),
-                    validator: (v) => Validators.validateRequired(v, 'La calle'),
+                    validator: (v) =>
+                        Validators.validateRequired(v, 'La calle'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -870,7 +1079,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       labelText: 'Número *',
                       hintText: 'Ej: 1234 o 56-A',
                     ),
-                    validator: (v) => Validators.validateRequired(v, 'El número'),
+                    validator: (v) =>
+                        Validators.validateRequired(v, 'El número'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -879,7 +1089,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       labelText: 'Comuna *',
                       hintText: 'Ej: Providencia',
                     ),
-                    validator: (v) => Validators.validateRequired(v, 'La comuna'),
+                    validator: (v) =>
+                        Validators.validateRequired(v, 'La comuna'),
                   ),
                 ],
               ),
@@ -901,42 +1112,94 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   Row(
                     children: const [
-                      Icon(Icons.access_time_outlined, color: AppTheme.primaryBlue),
+                      Icon(
+                        Icons.access_time_outlined,
+                        color: AppTheme.primaryBlue,
+                      ),
                       SizedBox(width: 8),
-                      Text('Programación y Carga', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        'Programación y Carga',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(height: 24),
                   DropdownButtonFormField<String>(
-                    value: _selectedWindow,
-                    items: ['08:00 - 10:00', '10:00 - 12:00', '12:00 - 14:00', '14:00 - 16:00'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    initialValue: _selectedWindow,
+                    items:
+                        [
+                              '08:00 - 10:00',
+                              '10:00 - 12:00',
+                              '12:00 - 14:00',
+                              '14:00 - 16:00',
+                            ]
+                            .map(
+                              (e) => DropdownMenuItem(value: e, child: Text(e)),
+                            )
+                            .toList(),
                     onChanged: (v) => setState(() => _selectedWindow = v!),
-                    decoration: const InputDecoration(labelText: 'Ventana Horaria *'),
+                    decoration: const InputDecoration(
+                      labelText: 'Ventana Horaria *',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: _selectedLoad,
-                    items: ['Paquetería', 'Construcción', 'Eventos'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    initialValue: _selectedLoad,
+                    items: ['Paquetería', 'Construcción', 'Eventos']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
                     onChanged: (v) => setState(() => _selectedLoad = v!),
-                    decoration: const InputDecoration(labelText: 'Tipo de Carga *'),
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de Carga *',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _weightController,
-                    decoration: const InputDecoration(labelText: 'Peso de la Carga (kg) *'),
+                    decoration: const InputDecoration(
+                      labelText: 'Peso de la Carga (kg) *',
+                    ),
                     keyboardType: TextInputType.number,
                     validator: (v) => Validators.validateRequired(v, 'El peso'),
                   ),
                   const SizedBox(height: 12),
-                  const Text('Dimensiones (Opcional - cm)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text(
+                    'Dimensiones (Opcional - cm)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: TextFormField(controller: _lengthController, decoration: const InputDecoration(labelText: 'Largo'), keyboardType: TextInputType.number)),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _lengthController,
+                          decoration: const InputDecoration(labelText: 'Largo'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: TextFormField(controller: _widthController, decoration: const InputDecoration(labelText: 'Ancho'), keyboardType: TextInputType.number)),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _widthController,
+                          decoration: const InputDecoration(labelText: 'Ancho'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Expanded(child: TextFormField(controller: _heightController, decoration: const InputDecoration(labelText: 'Alto'), keyboardType: TextInputType.number)),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _heightController,
+                          decoration: const InputDecoration(labelText: 'Alto'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -959,21 +1222,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   Row(
                     children: const [
-                      Icon(Icons.local_shipping_outlined, color: AppTheme.primaryBlue),
+                      Icon(
+                        Icons.local_shipping_outlined,
+                        color: AppTheme.primaryBlue,
+                      ),
                       SizedBox(width: 8),
-                      Text('Asignación de Flota', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                        'Asignación de Flota',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(height: 24),
                   if (vehicles.isEmpty)
-                    const Text('No hay vehículos activos con conductores activos. Registre uno en Ajustes > Gestión de Flota.', style: TextStyle(color: Colors.red, fontSize: 13))
+                    const Text(
+                      'No hay vehículos activos con conductores activos. Registre uno en Ajustes > Gestión de Flota.',
+                      style: TextStyle(color: Colors.red, fontSize: 13),
+                    )
                   else
                     DropdownButtonFormField<Vehicle>(
                       isExpanded: true,
-                      value: _selectedVehicle,
-                      items: vehicles.map((v) => DropdownMenuItem(value: v, child: Text('${v.name} [${v.patente}] (Max: ${v.maxWeight} kg)', overflow: TextOverflow.ellipsis))).toList(),
+                      initialValue: _selectedVehicle,
+                      items: vehicles
+                          .map(
+                            (v) => DropdownMenuItem(
+                              value: v,
+                              child: Text(
+                                '${v.name} [${v.patente}] (Max: ${v.maxWeight} kg)',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
                       onChanged: (v) => setState(() => _selectedVehicle = v!),
-                      decoration: const InputDecoration(labelText: 'Vehículo Asignado *'),
+                      decoration: const InputDecoration(
+                        labelText: 'Vehículo Asignado *',
+                      ),
                       validator: (v) => v == null ? 'Requerido' : null,
                     ),
                 ],
@@ -984,11 +1271,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ElevatedButton.icon(
             onPressed: _saveOrder,
             icon: const Icon(Icons.save_outlined, color: Colors.white),
-            label: const Text('GUARDAR DESPACHO', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+            label: const Text(
+              'GUARDAR DESPACHO',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1),
+            ),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
               backgroundColor: AppTheme.accentOrange,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
             ),
           ),
           const SizedBox(height: 32),
@@ -1013,11 +1305,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         }
 
         // Ordenar fechas en orden descendente (más recientes primero)
-        final sortedDates = groupedOrders.keys.toList()..sort((a, b) {
-          final dateA = DateFormat('dd/MM/yyyy').parse(a);
-          final dateB = DateFormat('dd/MM/yyyy').parse(b);
-          return dateB.compareTo(dateA);
-        });
+        final sortedDates = groupedOrders.keys.toList()
+          ..sort((a, b) {
+            final dateA = DateFormat('dd/MM/yyyy').parse(a);
+            final dateB = DateFormat('dd/MM/yyyy').parse(b);
+            return dateB.compareTo(dateA);
+          });
 
         return ListView.builder(
           padding: const EdgeInsets.all(20),
@@ -1037,36 +1330,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
-                        const Icon(Icons.calendar_today, size: 18, color: AppTheme.primaryBlue),
+                        const Icon(
+                          Icons.calendar_today,
+                          size: 18,
+                          color: AppTheme.primaryBlue,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           dateStr,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.primaryBlue),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppTheme.primaryBlue,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: AppTheme.primaryBlue,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             '${ordersForDate.length} pedidos',
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const Spacer(),
                         // Botón Exportar PDF
                         IconButton(
-                          icon: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 22),
+                          icon: const Icon(
+                            Icons.picture_as_pdf,
+                            color: Colors.red,
+                            size: 22,
+                          ),
                           onPressed: () async {
-                            final path = await PdfService.generateDailyReport(ordersForDate);
+                            final path = await PdfService.generateDailyReport(
+                              ordersForDate,
+                            );
                             provider.addGeneratedReport(dateStr, 'PDF', path);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Reporte PDF generado exitosamente')),
+                              const SnackBar(
+                                content: Text(
+                                  'Reporte PDF generado exitosamente',
+                                ),
+                              ),
                             );
                           },
                           tooltip: 'Exportar PDF',
@@ -1075,12 +1396,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                         // Botón Exportar Excel
                         IconButton(
-                          icon: const Icon(Icons.table_view, color: Colors.green, size: 22),
+                          icon: const Icon(
+                            Icons.table_view,
+                            color: Colors.green,
+                            size: 22,
+                          ),
                           onPressed: () async {
-                            final path = await PdfService.generateCSVReport(ordersForDate, dateStr);
+                            final path = await PdfService.generateCSVReport(
+                              ordersForDate,
+                              dateStr,
+                            );
                             provider.addGeneratedReport(dateStr, 'Excel', path);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Reporte Excel (CSV) generado exitosamente')),
+                              const SnackBar(
+                                content: Text(
+                                  'Reporte Excel (CSV) generado exitosamente',
+                                ),
+                              ),
                             );
                           },
                           tooltip: 'Exportar Excel (CSV)',
@@ -1108,7 +1440,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => AdminOrderDetailScreen(order: order),
+                            builder: (_) =>
+                                AdminOrderDetailScreen(order: order),
                           ),
                         );
                       },
@@ -1116,53 +1449,76 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         backgroundColor: order.status == 'Entregado'
                             ? const Color(0xFFE6F4EA)
                             : (order.status == 'Incidencia'
-                                ? const Color(0xFFFCE8E6)
-                                : Colors.grey.shade100),
+                                  ? const Color(0xFFFCE8E6)
+                                  : Colors.grey.shade100),
                         child: Icon(
                           order.status == 'Entregado'
                               ? Icons.check
                               : (order.status == 'Incidencia'
-                                  ? Icons.warning
-                                  : Icons.local_shipping),
+                                    ? Icons.warning
+                                    : Icons.local_shipping),
                           color: order.status == 'Entregado'
                               ? Colors.green
                               : (order.status == 'Incidencia'
-                                  ? Colors.red
-                                  : Colors.blue),
+                                    ? Colors.red
+                                    : Colors.blue),
                         ),
                       ),
-                      title: Text('Pedido #${order.id}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('${order.address}\nEstado: ${order.status} | $punctuality'),
+                      title: Text(
+                        'Pedido #${order.id}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        '${order.address}\nEstado: ${order.status} | $punctuality',
+                      ),
                       isThreeLine: true,
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (order.status == 'Pendiente' || order.status == 'Anulado')
+                          if (order.status == 'Pendiente' ||
+                              order.status == 'Anulado')
                             PopupMenuButton<String>(
                               onSelected: (value) {
                                 if (value == 'Anular') {
-                                  provider.updateOrderStatus(order.id!, 'Anulado');
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido anulado.')));
+                                  provider.updateOrderStatus(
+                                    order.id!,
+                                    'Anulado',
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Pedido anulado.'),
+                                    ),
+                                  );
                                 } else if (value == 'Eliminar') {
                                   provider.deleteOrder(order.id!);
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido eliminado.')));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Pedido eliminado.'),
+                                    ),
+                                  );
                                 } else if (value == 'Editar') {
                                   // Pre-fill fields and move to form tab
                                   setState(() {
                                     _selectedClientOption = 'manual';
                                     _isManualClient = true;
                                     _rutController.text = order.clientId;
-                                    _clientNameController.text = ''; // Pre-fill name can be manually typed
-                                    
+                                    _clientNameController.text =
+                                        ''; // Pre-fill name can be manually typed
+
                                     // Parse street/number/comuna from address if possible
                                     final parts = order.address.split(',');
                                     if (parts.length >= 2) {
                                       final streetNum = parts[0].trim();
                                       _comunaController.text = parts[1].trim();
-                                      final lastSpaceIdx = streetNum.lastIndexOf(' ');
+                                      final lastSpaceIdx = streetNum
+                                          .lastIndexOf(' ');
                                       if (lastSpaceIdx != -1) {
-                                        _calleController.text = streetNum.substring(0, lastSpaceIdx).trim();
-                                        _numeroController.text = streetNum.substring(lastSpaceIdx).trim();
+                                        _calleController.text = streetNum
+                                            .substring(0, lastSpaceIdx)
+                                            .trim();
+                                        _numeroController.text = streetNum
+                                            .substring(lastSpaceIdx)
+                                            .trim();
                                       } else {
                                         _calleController.text = streetNum;
                                         _numeroController.clear();
@@ -1173,30 +1529,50 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                       _comunaController.clear();
                                     }
 
-                                    _weightController.text = order.weight.toString();
-                                    _lengthController.text = order.length.toString();
-                                    _widthController.text = order.width.toString();
-                                    _heightController.text = order.height.toString();
+                                    _weightController.text = order.weight
+                                        .toString();
+                                    _lengthController.text = order.length
+                                        .toString();
+                                    _widthController.text = order.width
+                                        .toString();
+                                    _heightController.text = order.height
+                                        .toString();
                                     _selectedWindow = order.timeWindow;
                                     _selectedLoad = order.loadType;
                                     _currentIndex = 2; // Jump to New/Edit tab
                                   });
                                 }
                               },
-                              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                                if (order.status == 'Pendiente')
-                                  const PopupMenuItem<String>(value: 'Editar', child: Text('Editar')),
-                                if (order.status == 'Pendiente')
-                                  const PopupMenuItem<String>(value: 'Anular', child: Text('Anular', style: TextStyle(color: Colors.red))),
-                                if (order.status == 'Anulado')
-                                  const PopupMenuItem<String>(value: 'Eliminar', child: Text('Eliminar', style: TextStyle(color: Colors.red))),
-                              ],
+                              itemBuilder: (BuildContext context) =>
+                                  <PopupMenuEntry<String>>[
+                                    if (order.status == 'Pendiente')
+                                      const PopupMenuItem<String>(
+                                        value: 'Editar',
+                                        child: Text('Editar'),
+                                      ),
+                                    if (order.status == 'Pendiente')
+                                      const PopupMenuItem<String>(
+                                        value: 'Anular',
+                                        child: Text(
+                                          'Anular',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    if (order.status == 'Anulado')
+                                      const PopupMenuItem<String>(
+                                        value: 'Eliminar',
+                                        child: Text(
+                                          'Eliminar',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                  ],
                             ),
                         ],
                       ),
                     ),
                   );
-                }).toList(),
+                }),
                 const SizedBox(height: 16),
               ],
             );
@@ -1213,7 +1589,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       children: [
         const Text(
           'Configuraciones y Módulos',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
         const SizedBox(height: 16),
         _buildAjustesTile(
@@ -1221,7 +1601,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           title: 'Gestión de Flota',
           subtitle: 'Monitorear, agregar y editar vehículos corporativos',
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const FleetManagementScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FleetManagementScreen()),
+            );
           },
         ),
         const SizedBox(height: 12),
@@ -1230,7 +1613,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           title: 'Gestión de Usuarios y Seguridad',
           subtitle: 'Controlar accesos, roles y bitácora de auditoría',
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const UserManagementScreen()),
+            );
           },
         ),
         const SizedBox(height: 12),
@@ -1239,7 +1625,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           title: 'Reportes y Exportaciones',
           subtitle: 'Exportación de datos de despachos en PDF y Excel',
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ReportsScreen()),
+            );
           },
         ),
       ],
@@ -1261,16 +1650,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
         leading: CircleAvatar(
           radius: 22,
           backgroundColor: AppTheme.primaryBlue.withOpacity(0.08),
           child: Icon(icon, color: AppTheme.primaryBlue),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4.0),
-          child: Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          child: Text(
+            subtitle,
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       ),
