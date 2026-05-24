@@ -10,8 +10,8 @@ Qúbico Transportes es una aplicación móvil corporativa (B2B) desarrollada en 
 
 La aplicación cuenta con validación de credenciales en local y segmentación de permisos según el rol.
 
-* **Administrador:** `admin@qubico.cl` / Contraseña: `123`
-* **Conductor:** `conductor@qubico.cl` / Contraseña: `123`
+* **Administrador:** `admin@qubico.cl` / Contraseña: `admin123`
+* **Conductor:** `conductor@qubico.cl` / Contraseña: `conductor123`
 
 *(Nota: La pantalla de Login incluye opción para visualizar la contraseña y protección frente a múltiples intentos fallidos).*
 
