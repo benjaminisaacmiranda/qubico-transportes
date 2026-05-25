@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../models/user_model.dart';
-import '../../providers/user_provider.dart';
 import '../../utils/validators.dart';
 import '../theme/app_theme.dart';
 
@@ -44,7 +43,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildAccountsTab(), _buildAuditTab()],
+        children: [
+          _buildAccountsTab(),
+          _buildAuditTab(),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddUserDialog(),
@@ -54,45 +56,38 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
+  // ================= USERS LIST =================
   Widget _buildAccountsTab() {
-    return Consumer<UserProvider>(
-      builder: (context, provider, child) {
-        if (provider.users.isEmpty) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final users = snapshot.data!.docs;
+
+        if (users.isEmpty) {
           return const Center(child: Text('No hay usuarios registrados'));
         }
 
         return ListView.builder(
-          itemCount: provider.users.length,
+          itemCount: users.length,
           itemBuilder: (context, index) {
-            final user = provider.users[index];
+            final data = users[index].data() as Map<String, dynamic>;
+
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: user.isActive
-                      ? AppTheme.primaryBlue
-                      : Colors.grey,
+                  backgroundColor: Colors.blue,
                   child: const Icon(Icons.person, color: Colors.white),
                 ),
-                title: Text(
-                  user.fullName,
-                  style: TextStyle(
-                    decoration: user.isActive
-                        ? TextDecoration.none
-                        : TextDecoration.lineThrough,
-                    color: user.isActive ? Colors.black : Colors.grey,
-                  ),
-                ),
+                title: Text(data['fullName'] ?? 'Sin nombre'),
                 subtitle: Text(
-                  '${user.email}\nRol: ${user.role.name.toUpperCase()}',
+                  '${data['correo']}\nRol: ${data['rol']}',
                 ),
                 isThreeLine: true,
-                trailing: Switch(
-                  value: user.isActive,
-                  onChanged: (value) {
-                    provider.toggleUserStatus(user.id, user.isActive);
-                  },
-                ),
               ),
             );
           },
@@ -101,16 +96,17 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
+  // ================= AUDIT (mock) =================
   Widget _buildAuditTab() {
     return ListView(
-      padding: const EdgeInsets.all(16),
-      children: const [
+      padding: EdgeInsets.all(16),
+      children: [
         Card(
           child: ListTile(
             leading: Icon(Icons.history, color: AppTheme.primaryBlue),
             title: Text('Auditoría del Sistema'),
             subtitle: Text(
-              'El usuario [Admin_Luis] modificó el [Estado_Pedido] del ID #450 de [Pendiente] a [Anulado] el día 18/05/2026 a las 14:00 hrs.',
+              'Sistema de auditoría activo (pendiente integración real)',
             ),
           ),
         ),
@@ -118,13 +114,15 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
+  // ================= CREATE USER =================
   void _showAddUserDialog() {
     final formKey = GlobalKey<FormState>();
     final idController = TextEditingController();
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
-    UserRole selectedRole = UserRole.conductor;
+
+    String selectedRole = 'usuario';
 
     showDialog(
       context: context,
@@ -144,54 +142,42 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre Completo',
-                  ),
-                  validator: (v) => Validators.validateRequired(v, 'El nombre'),
+                  decoration: const InputDecoration(labelText: 'Nombre'),
+                  validator: (v) =>
+                      Validators.validateRequired(v, 'El nombre'),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo Electrónico',
-                  ),
+                  decoration:
+                      const InputDecoration(labelText: 'Correo'),
                   validator: Validators.validateEmail,
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: passwordController,
-                  decoration: const InputDecoration(labelText: 'Contraseña'),
+                  decoration:
+                      const InputDecoration(labelText: 'Contraseña'),
                   obscureText: true,
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Requerido';
                     if (v.length < 8) return 'Mínimo 8 caracteres';
-                    if (!v.contains(RegExp(r'[A-Z]')))
-                      return 'Debe contener una mayúscula';
-                    if (!v.contains(RegExp(r'[0-9]')))
-                      return 'Debe contener un número';
                     return null;
                   },
                 ),
                 const SizedBox(height: 8),
-                DropdownButtonFormField<UserRole>(
-                  initialValue: selectedRole,
-                  items: UserRole.values
-                      .where(
-                        (role) =>
-                            role == UserRole.admin ||
-                            role == UserRole.conductor,
-                      )
-                      .map(
-                        (role) => DropdownMenuItem(
-                          value: role,
-                          child: Text(
-                            role == UserRole.admin
-                                ? 'ADMINISTRADOR'
-                                : 'CONDUCTOR',
-                          ),
-                        ),
-                      )
-                      .toList(),
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'admin',
+                      child: Text('ADMINISTRADOR'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'usuario',
+                      child: Text('USUARIO'),
+                    ),
+                  ],
                   onChanged: (v) => selectedRole = v!,
                   decoration: const InputDecoration(labelText: 'Rol'),
                 ),
@@ -205,19 +191,42 @@ class _UserManagementScreenState extends State<UserManagementScreen>
             child: const Text('CANCELAR'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (formKey.currentState!.validate()) {
-                final newUser = User(
-                  id: idController.text,
-                  fullName: nameController.text,
-                  email: emailController.text,
-                  role: selectedRole,
-                );
-                context.read<UserProvider>().addUser(newUser);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Usuario creado exitosamente')),
-                );
+                try {
+                  // 🔐 Crear usuario en Auth
+                  final cred = await FirebaseAuth.instance
+                      .createUserWithEmailAndPassword(
+                    email: emailController.text.trim(),
+                    password: passwordController.text.trim(),
+                  );
+
+                  final uid = cred.user!.uid;
+
+                  // 📦 Guardar en Firestore
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(uid)
+                      .set({
+                    'correo': emailController.text.trim(),
+                    'fullName': nameController.text.trim(),
+                    'rut': idController.text.trim(),
+                    'rol': selectedRole,
+                    'isActive': true,
+                  });
+
+                  Navigator.pop(context);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Usuario creado exitosamente'),
+                    ),
+                  );
+                } on FirebaseAuthException catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.message ?? 'Error')),
+                  );
+                }
               }
             },
             child: const Text('GUARDAR'),

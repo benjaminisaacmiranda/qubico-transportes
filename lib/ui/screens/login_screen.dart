@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -18,55 +19,52 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   Future<void> _login() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+  final email = _emailController.text.trim();
+  final password = _passwordController.text.trim();
 
-    try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+  try {
+    // 🔐 Login con Firebase Auth
+    final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    if (!mounted) return;
+
+    // 📦 Buscar datos en Firestore por UID
+    final uid = cred.user!.uid;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+
+    if (!doc.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario no existe en Firestore')),
       );
-
-      if (!mounted) return;
-
-      switch (email) {
-        case 'admin@qubico.cl':
-          context.go('/admin');
-          break;
-
-        case 'conductor@qubico.cl':
-          context.go('/home');
-          break;
-
-        default:
-          context.go('/home');
-      }
-    } on FirebaseAuthException catch (e) {
-      String mensaje;
-
-      switch (e.code) {
-        case 'user-not-found':
-          mensaje = 'Usuario no encontrado';
-          break;
-
-        case 'wrong-password':
-        case 'invalid-credential':
-          mensaje = 'Contraseña incorrecta';
-          break;
-
-        case 'invalid-email':
-          mensaje = 'Correo inválido';
-          break;
-
-        default:
-          mensaje = 'Error al iniciar sesión';
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(mensaje)));
+      return;
     }
+
+    final data = doc.data() as Map<String, dynamic>;
+    final rol = data['rol'];
+
+    // 🚀 Redirección por rol
+    if (rol == 'admin') {
+      context.go('/admin');
+    } else {
+      context.go('/home');
+    }
+
+  } on FirebaseAuthException {
+    // ❌ error login
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Usuario o contraseña incorrectos'),
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 decoration: const InputDecoration(
                   hintText: 'Correo Institucional',
-                  prefixIcon: Icon(Icons.email_outlined, color: Colors.grey),
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
               const SizedBox(height: 16),
@@ -116,10 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   hintText: 'Contraseña',
-                  prefixIcon: const Icon(
-                    Icons.lock_outline,
-                    color: Colors.grey,
-                  ),
+                  prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
@@ -141,15 +136,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   minimumSize: const Size(double.infinity, 50),
                   backgroundColor: AppTheme.primaryBlue,
                 ),
-                child: const Text(
-                  'INGRESAR',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                ),
+                child: const Text('INGRESAR'),
               ),
-              const SizedBox(height: 16),
             ],
           ),
         ),
