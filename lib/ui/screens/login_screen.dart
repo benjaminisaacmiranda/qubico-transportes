@@ -1,9 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart'; // <-- IMPORTANTE: Agregar este import
+import 'package:go_router/go_router.dart';
 
 import '../theme/app_theme.dart';
-
-// Ya no necesitas importar 'home_screen.dart' ni 'admin_dashboard_screen.dart' aquí
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,27 +14,62 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
   bool _obscurePassword = true;
 
-  void _login() {
+  Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // Las credenciales siguen apuntando a los valores institucionales fijos por ahora
-    if (email == 'admin@qubico.cl' && password == 'admin123') {
-      context.go('/admin'); // <-- CAMBIADO: Navegación limpia con GoRouter
-    } else if (email == 'conductor@qubico.cl' && password == 'conductor123') {
-      context.go('/home'); // <-- CAMBIADO: Navegación limpia con GoRouter
-    } else {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+
+      switch (email) {
+        case 'admin@qubico.cl':
+          context.go('/admin');
+          break;
+
+        case 'conductor@qubico.cl':
+          context.go('/home');
+          break;
+
+        default:
+          context.go('/home');
+      }
+    } on FirebaseAuthException catch (e) {
+      String mensaje;
+
+      switch (e.code) {
+        case 'user-not-found':
+          mensaje = 'Usuario no encontrado';
+          break;
+
+        case 'wrong-password':
+        case 'invalid-credential':
+          mensaje = 'Contraseña incorrecta';
+          break;
+
+        case 'invalid-email':
+          mensaje = 'Correo inválido';
+          break;
+
+        default:
+          mensaje = 'Error al iniciar sesión';
+      }
+
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Credenciales incorrectas')));
+      ).showSnackBar(SnackBar(content: Text(mensaje)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // El árbol de widgets del Scaffold se mantiene exactamente igual
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: Center(
@@ -91,7 +125,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       _obscurePassword
                           ? Icons.visibility_off
                           : Icons.visibility,
-                      color: Colors.grey,
                     ),
                     onPressed: () {
                       setState(() {

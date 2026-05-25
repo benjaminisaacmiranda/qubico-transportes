@@ -1,14 +1,22 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'firebase_options.dart';
 import 'providers/client_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/vehicle_provider.dart';
-import 'routes/app_router.dart'; //
+import 'routes/app_router.dart';
 import 'ui/theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(
     MultiProvider(
       providers: [
@@ -27,12 +35,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // AQUÍ ESTÁ LA MAGIA: Usamos .router y le pasamos la configuración
     return MaterialApp.router(
       title: 'Qúbico',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(scaffoldBackgroundColor: AppTheme.backgroundColor),
-      routerConfig: AppRouter.router, // <-- CONECTAMOS EL GOROUTER
+      theme: ThemeData(
+        scaffoldBackgroundColor: AppTheme.backgroundColor,
+      ),
+      routerConfig: AppRouter.router,
     );
   }
 }
