@@ -7,16 +7,20 @@ class Order {
   final double height;
   final double length;
   final double width;
-  final String loadType; // Paquetería, Construcción, Eventos
-  final String timeWindow; // e.g., "08:00 - 10:00"
+  final String loadType;
+  final String timeWindow;
   final String address;
-  final String status; // En camino, Entregado, Incidencia, Pendiente
+  final String status;
   final DateTime scheduledDate;
   final String? driverId;
   final String? evidencePath;
   final String? signaturePath;
   final String? incidentReason;
   final DateTime? deliveryTime;
+
+  // NUEVO
+  final bool pendingSync;
+  final int syncAttempts;
 
   Order({
     this.id,
@@ -35,6 +39,10 @@ class Order {
     this.signaturePath,
     this.incidentReason,
     this.deliveryTime,
+
+    // NUEVO
+    this.pendingSync = false,
+    this.syncAttempts = 0,
   });
 
   Map<String, dynamic> toMap() {
@@ -55,6 +63,10 @@ class Order {
       'signature_path': signaturePath,
       'incident_reason': incidentReason,
       'delivery_time': deliveryTime?.toIso8601String(),
+
+      // NUEVO
+      'pending_sync': pendingSync ? 1 : 0,
+      'sync_attempts': syncAttempts,
     };
   }
 
@@ -75,7 +87,13 @@ class Order {
       evidencePath: map['evidence_path'],
       signaturePath: map['signature_path'],
       incidentReason: map['incident_reason'],
-      deliveryTime: map['delivery_time'] != null ? DateTime.parse(map['delivery_time']) : null,
+      deliveryTime: map['delivery_time'] != null
+          ? DateTime.parse(map['delivery_time'])
+          : null,
+
+      // NUEVO
+      pendingSync: map['pending_sync'] == 1,
+      syncAttempts: map['sync_attempts'] ?? 0,
     );
   }
 }
