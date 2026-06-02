@@ -1,7 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/user_model.dart' as app_models;
+import '../../providers/user_provider.dart';
 import '../../utils/validators.dart';
 import '../theme/app_theme.dart';
 
@@ -28,35 +31,47 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configuración de Seguridad y Perfiles'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Gestión de Cuentas'),
-            Tab(text: 'Bitácora de Auditoría'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildAccountsTab(),
-          _buildAuditTab(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddUserDialog(),
-        backgroundColor: AppTheme.accentOrange,
-        child: const Icon(Icons.add),
-      ),
-    );
+  // ── helpers ──────────────────────────────────────────────
+
+  /// Icono por rol
+  IconData _roleIcon(String rol) {
+    switch (rol) {
+      case 'conductor':
+        return Icons.drive_eta;
+      case 'admin':
+        return Icons.admin_panel_settings;
+      default:
+        return Icons.person;
+    }
   }
 
-  // ================= USERS LIST =================
+  /// Color de badge por rol
+  Color _roleColor(String rol) {
+    switch (rol) {
+      case 'conductor':
+        return AppTheme.accentOrange;
+      case 'admin':
+        return AppTheme.primaryBlue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  /// Label legible por rol
+  String _roleLabel(String rol) {
+    switch (rol) {
+      case 'conductor':
+        return 'Conductor';
+      case 'admin':
+        return 'Administrador';
+      default:
+        return 'Usuario';
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // TAB 1 – Gestión de Cuentas
+  // ══════════════════════════════════════════════════════
   Widget _buildAccountsTab() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
@@ -68,26 +83,75 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         final users = snapshot.data!.docs;
 
         if (users.isEmpty) {
-          return const Center(child: Text('No hay usuarios registrados'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.group_off, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No hay usuarios registrados',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Presiona + para agregar el primero',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          );
         }
 
         return ListView.builder(
+          padding: const EdgeInsets.all(12),
           itemCount: users.length,
           itemBuilder: (context, index) {
             final data = users[index].data() as Map<String, dynamic>;
+            final rol = data['rol'] as String? ?? 'usuario';
 
             return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 8),
+              elevation: 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.grey[200]!, width: 1),
+              ),
               child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 leading: CircleAvatar(
-                  backgroundColor: Colors.blue,
-                  child: const Icon(Icons.person, color: Colors.white),
+                  backgroundColor: _roleColor(rol).withOpacity(0.15),
+                  child: Icon(_roleIcon(rol), color: _roleColor(rol), size: 22),
                 ),
-                title: Text(data['fullName'] ?? 'Sin nombre'),
+                title: Text(
+                  data['fullName'] ?? 'Sin nombre',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 subtitle: Text(
-                  '${data['correo']}\nRol: ${data['rol']}',
+                  data['correo'] ?? '',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
                 ),
-                isThreeLine: true,
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _roleColor(rol).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _roleLabel(rol),
+                    style: TextStyle(
+                      color: _roleColor(rol),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               ),
             );
           },
@@ -96,16 +160,18 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ================= AUDIT (mock) =================
+  // ══════════════════════════════════════════════════════
+  // TAB 2 – Bitácora de Auditoría
+  // ══════════════════════════════════════════════════════
   Widget _buildAuditTab() {
     return ListView(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       children: [
         Card(
           child: ListTile(
             leading: Icon(Icons.history, color: AppTheme.primaryBlue),
-            title: Text('Auditoría del Sistema'),
-            subtitle: Text(
+            title: const Text('Auditoría del Sistema'),
+            subtitle: const Text(
               'Sistema de auditoría activo (pendiente integración real)',
             ),
           ),
@@ -114,124 +180,332 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ================= CREATE USER =================
+  // ══════════════════════════════════════════════════════
+  // DIÁLOGO CREAR USUARIO
+  // ══════════════════════════════════════════════════════
   void _showAddUserDialog() {
     final formKey = GlobalKey<FormState>();
-    final idController = TextEditingController();
+    final rutController = TextEditingController();
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
+    bool obscurePass = true;
+    bool isSaving = false;
 
-    String selectedRole = 'usuario';
+    // ⚠️ 'conductor' incluido para que aparezca en Gestión de Flota
+    String selectedRole = 'conductor';
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nuevo Usuario'),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: idController,
-                  decoration: const InputDecoration(labelText: 'RUT'),
-                  validator: Validators.validateRut,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Nombre'),
-                  validator: (v) =>
-                      Validators.validateRequired(v, 'El nombre'),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: emailController,
-                  decoration:
-                      const InputDecoration(labelText: 'Correo'),
-                  validator: Validators.validateEmail,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: passwordController,
-                  decoration:
-                      const InputDecoration(labelText: 'Contraseña'),
-                  obscureText: true,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Requerido';
-                    if (v.length < 8) return 'Mínimo 8 caracteres';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: selectedRole,
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'admin',
-                      child: Text('ADMINISTRADOR'),
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.person_add, color: AppTheme.primaryBlue, size: 22),
+              const SizedBox(width: 8),
+              const Text('Nuevo Usuario'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: SizedBox(
+              width: 360,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // RUT
+                    TextFormField(
+                      controller: rutController,
+                      decoration: const InputDecoration(
+                        labelText: 'RUT',
+                        hintText: 'Ej: 12.345.678-9',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                      ),
+                      validator: Validators.validateRut,
                     ),
-                    DropdownMenuItem(
-                      value: 'usuario',
-                      child: Text('USUARIO'),
+                    const SizedBox(height: 10),
+
+                    // Nombre completo
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre completo',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (v) =>
+                          Validators.validateRequired(v, 'El nombre'),
                     ),
+                    const SizedBox(height: 10),
+
+                    // Correo
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Correo electrónico',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: Validators.validateEmail,
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Contraseña
+                    TextFormField(
+                      controller: passwordController,
+                      obscureText: obscurePass,
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePass
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () =>
+                              setDialogState(() => obscurePass = !obscurePass),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Requerido';
+                        if (v.length < 8) return 'Mínimo 8 caracteres';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 10),
+
+                    // ── ROL ──────────────────────────────────────
+                    // Incluye 'conductor' para que quede disponible
+                    // en el dropdown de Gestión de Flota
+                    DropdownButtonFormField<String>(
+                      value: selectedRole,
+                      decoration: const InputDecoration(
+                        labelText: 'Rol',
+                        prefixIcon: Icon(Icons.manage_accounts_outlined),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'conductor',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.drive_eta,
+                                size: 18,
+                                color: AppTheme.accentOrange,
+                              ),
+                              SizedBox(width: 8),
+                              Text('CONDUCTOR'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'admin',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.admin_panel_settings,
+                                size: 18,
+                                color: AppTheme.primaryBlue,
+                              ),
+                              SizedBox(width: 8),
+                              Text('ADMINISTRADOR'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'usuario',
+                          child: Row(
+                            children: [
+                              Icon(Icons.person, size: 18, color: Colors.grey),
+                              SizedBox(width: 8),
+                              Text('USUARIO'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (v) => setDialogState(() => selectedRole = v!),
+                    ),
+
+                    // Aviso informativo para el rol conductor
+                    if (selectedRole == 'conductor') ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentOrange.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppTheme.accentOrange.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: AppTheme.accentOrange,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Este conductor podrá ser asignado en Gestión de Flota.',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                  onChanged: (v) => selectedRole = v!,
-                  decoration: const InputDecoration(labelText: 'Rol'),
                 ),
-              ],
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+              child: const Text('CANCELAR'),
+            ),
+            ElevatedButton.icon(
+              icon: isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.save, size: 18),
+              label: Text(isSaving ? 'Guardando…' : 'GUARDAR'),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isSaving = true);
+
+                      try {
+                        // 1️⃣  Crear en Firebase Auth
+                        final cred = await FirebaseAuth.instance
+                            .createUserWithEmailAndPassword(
+                              email: emailController.text.trim(),
+                              password: passwordController.text.trim(),
+                            );
+                        final uid = cred.user!.uid;
+
+                        // 2️⃣  Guardar en Firestore
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(uid)
+                            .set({
+                              'correo': emailController.text.trim(),
+                              'fullName': nameController.text.trim(),
+                              'rut': rutController.text.trim(),
+                              'rol': selectedRole,
+                              'isActive': true,
+                            });
+
+                        // 3️⃣  Guardar también en SQLite local
+                        //     para que Gestión de Flota pueda leer
+                        //     conductores desde UserProvider
+                        final appRole = app_models.UserRole.values.firstWhere(
+                          (e) => e.toString().split('.').last == selectedRole,
+                          orElse: () => app_models.UserRole.staff,
+                        );
+
+                        final newUser = app_models.User(
+                          id: uid,
+                          fullName: nameController.text.trim(),
+                          email: emailController.text.trim(),
+                          role: appRole,
+                          isActive: true,
+                        );
+
+                        if (mounted) {
+                          await context.read<UserProvider>().addUser(
+                            newUser,
+                            password: passwordController.text.trim(),
+                          );
+                        }
+
+                        if (mounted) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    selectedRole == 'conductor'
+                                        ? 'Conductor creado. Ya aparece en Gestión de Flota.'
+                                        : 'Usuario creado exitosamente.',
+                                  ),
+                                ],
+                              ),
+                              backgroundColor: Colors.green[700],
+                            ),
+                          );
+                        }
+                      } on FirebaseAuthException catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e.message ?? 'Error de Firebase'),
+                              backgroundColor: Colors.red[700],
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error inesperado: $e'),
+                              backgroundColor: Colors.red[700],
+                            ),
+                          );
+                        }
+                      }
+                    },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCELAR'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                try {
-                  // 🔐 Crear usuario en Auth
-                  final cred = await FirebaseAuth.instance
-                      .createUserWithEmailAndPassword(
-                    email: emailController.text.trim(),
-                    password: passwordController.text.trim(),
-                  );
+      ),
+    );
+  }
 
-                  final uid = cred.user!.uid;
-
-                  // 📦 Guardar en Firestore
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(uid)
-                      .set({
-                    'correo': emailController.text.trim(),
-                    'fullName': nameController.text.trim(),
-                    'rut': idController.text.trim(),
-                    'rol': selectedRole,
-                    'isActive': true,
-                  });
-
-                  Navigator.pop(context);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Usuario creado exitosamente'),
-                    ),
-                  );
-                } on FirebaseAuthException catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.message ?? 'Error')),
-                  );
-                }
-              }
-            },
-            child: const Text('GUARDAR'),
-          ),
-        ],
+  // ══════════════════════════════════════════════════════
+  // BUILD
+  // ══════════════════════════════════════════════════════
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Configuración de Seguridad y Perfiles'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.manage_accounts), text: 'Gestión de Cuentas'),
+            Tab(icon: Icon(Icons.history), text: 'Bitácora de Auditoría'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [_buildAccountsTab(), _buildAuditTab()],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddUserDialog,
+        backgroundColor: AppTheme.accentOrange,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Nuevo usuario'),
       ),
     );
   }
