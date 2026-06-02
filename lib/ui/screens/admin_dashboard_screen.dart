@@ -291,7 +291,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
               Text(
-                'Juan Pérez',
+                'Juan Pére',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,

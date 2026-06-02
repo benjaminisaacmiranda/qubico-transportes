@@ -1,9 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart'; // <-- IMPORTANTE: Agregar este import
+import 'package:go_router/go_router.dart';
 
 import '../theme/app_theme.dart';
-
-// Ya no necesitas importar 'home_screen.dart' ni 'admin_dashboard_screen.dart' aquí
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,27 +15,59 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
   bool _obscurePassword = true;
 
-  void _login() {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+  Future<void> _login() async {
+  final email = _emailController.text.trim();
+  final password = _passwordController.text.trim();
 
-    // Las credenciales siguen apuntando a los valores institucionales fijos por ahora
-    if (email == 'admin@qubico.cl' && password == 'admin123') {
-      context.go('/admin'); // <-- CAMBIADO: Navegación limpia con GoRouter
-    } else if (email == 'conductor@qubico.cl' && password == 'conductor123') {
-      context.go('/home'); // <-- CAMBIADO: Navegación limpia con GoRouter
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Credenciales incorrectas')));
+  try {
+    // 🔐 Login con Firebase Auth
+    final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    if (!mounted) return;
+
+    // 📦 Buscar datos en Firestore por UID
+    final uid = cred.user!.uid;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+
+    if (!doc.exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario no existe en Firestore')),
+      );
+      return;
     }
+
+    final data = doc.data() as Map<String, dynamic>;
+    final rol = data['rol'];
+
+    // 🚀 Redirección por rol
+    if (rol == 'admin') {
+      context.go('/admin');
+    } else {
+      context.go('/home');
+    }
+
+  } on FirebaseAuthException {
+    // ❌ error login
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Usuario o contraseña incorrectos'),
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
-    // El árbol de widgets del Scaffold se mantiene exactamente igual
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: Center(
@@ -73,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _emailController,
                 decoration: const InputDecoration(
                   hintText: 'Correo Institucional',
-                  prefixIcon: Icon(Icons.email_outlined, color: Colors.grey),
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
               const SizedBox(height: 16),
@@ -82,16 +114,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   hintText: 'Contraseña',
-                  prefixIcon: const Icon(
-                    Icons.lock_outline,
-                    color: Colors.grey,
-                  ),
+                  prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword
                           ? Icons.visibility_off
                           : Icons.visibility,
-                      color: Colors.grey,
                     ),
                     onPressed: () {
                       setState(() {
@@ -108,15 +136,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   minimumSize: const Size(double.infinity, 50),
                   backgroundColor: AppTheme.primaryBlue,
                 ),
-                child: const Text(
-                  'INGRESAR',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                ),
+                child: const Text('INGRESAR'),
               ),
-              const SizedBox(height: 16),
             ],
           ),
         ),
