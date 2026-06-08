@@ -25,8 +25,6 @@ class ClientProvider with ChangeNotifier {
     try {
       final data = await DatabaseService.instance.queryAll('clients');
       _clients = data.map((e) => Client.fromMap(e)).toList();
-      print("CLIENTES EN SQLITE:");
-      print(data);
     } catch (e) {
       debugPrint('Error fetching clients: $e');
       _errorMessage = 'Error al cargar clientes: $e';

@@ -51,7 +51,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   String? _selectedClientOption = 'manual';
   bool _isManualClient = true;
-  bool _saveAsFrequent = false;
+
   Vehicle? _selectedVehicle;
   String _selectedWindow = '08:00 - 10:00';
   String _selectedLoad = 'Paquetería';
@@ -78,7 +78,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     setState(() {
       _selectedClientOption = 'manual';
       _isManualClient = true;
-      _saveAsFrequent = false;
       _selectedVehicle = null;
       _rutController.clear();
       _clientNameController.clear();
@@ -124,7 +123,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           "${_calleController.text.trim()} ${_numeroController.text.trim()}, ${_comunaController.text.trim()}";
 
       // Guardar como cliente frecuente si es manual y la casilla está marcada
-      if (_isManualClient && _saveAsFrequent) {
+      if (_isManualClient) {
         final clientRut = _rutController.text.trim();
         final clientName = _clientNameController.text.trim();
         final clientPhone = _phoneController.text.trim();
@@ -138,6 +137,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             email: clientEmail,
             billingAddress: fullAddress,
           );
+
           try {
             await context.read<ClientProvider>().addClient(newClient);
           } catch (_) {
@@ -270,87 +270,81 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
- Widget _buildAdminHeader() {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
+  Widget _buildAdminHeader() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
 
-  if (uid == null) {
-    return const SizedBox.shrink();
-  }
+    if (uid == null) {
+      return const SizedBox.shrink();
+    }
 
-  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    future: FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get(),
-    builder: (context, snapshot) {
-      String fullName = 'Usuario sin nombre registrado';
-      String role = 'Administrador';
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+      builder: (context, snapshot) {
+        String fullName = 'Usuario sin nombre registrado';
+        String role = 'Administrador';
 
-      if (snapshot.hasData && snapshot.data!.exists) {
-        final data = snapshot.data!.data();
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data();
 
-        if (data != null) {
-  fullName =
-      (data['fullName']?.toString().trim().isNotEmpty ?? false)
-          ? data['fullName']
-          : 'Usuario sin nombre registrado';
+          if (data != null) {
+            fullName = (data['fullName']?.toString().trim().isNotEmpty ?? false)
+                ? data['fullName']
+                : 'Usuario sin nombre registrado';
 
-  role = data['rol'] ?? 'Administrador';
-}
-      }
+            role = data['rol'] ?? 'Administrador';
+          }
+        }
 
-      final initials = fullName
-          .split(' ')
-          .where((name) => name.isNotEmpty)
-          .take(2)
-          .map((name) => name[0].toUpperCase())
-          .join();
+        final initials = fullName
+            .split(' ')
+            .where((name) => name.isNotEmpty)
+            .take(2)
+            .map((name) => name[0].toUpperCase())
+            .join();
 
-      return Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
-              child: Text(
-                initials.isNotEmpty ? initials : 'U',
-                style: const TextStyle(
-                  color: AppTheme.accentOrange,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
+        return Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
+                child: Text(
+                  initials.isNotEmpty ? initials : 'U',
+                  style: const TextStyle(
+                    color: AppTheme.accentOrange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fullName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Colors.black,
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fullName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.black,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  role == 'admin' ? 'Administrador' : role,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
+                  const SizedBox(height: 2),
+                  Text(
+                    role == 'admin' ? 'Administrador' : role,
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // ================= TAB 1: INICIO =================
   Widget _buildInicioTab() {
     final orderProvider = context.watch<OrderProvider>();
@@ -1066,26 +1060,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     keyboardType: TextInputType.emailAddress,
                     readOnly: !_isManualClient,
                   ),
-                  if (_isManualClient) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _saveAsFrequent,
-                          onChanged: (v) {
-                            setState(() {
-                              _saveAsFrequent = v ?? false;
-                            });
-                          },
-                          activeColor: AppTheme.primaryBlue,
-                        ),
-                        const Text(
-                          'Guardar como cliente frecuente',
-                          style: TextStyle(fontSize: 13, color: Colors.black87),
-                        ),
-                      ],
-                    ),
-                  ],
+
                   const Divider(height: 24),
                   Row(
                     children: const [

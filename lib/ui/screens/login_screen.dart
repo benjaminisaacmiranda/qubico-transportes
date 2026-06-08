@@ -5,6 +5,12 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/app_theme.dart';
 
+import 'package:provider/provider.dart';
+
+import '../../providers/client_provider.dart';
+import '../../providers/order_provider.dart';
+import '../../providers/vehicle_provider.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -65,15 +71,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!doc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Usuario no existe en Firestore'),
-          ),
+          const SnackBar(content: Text('Usuario no existe en Firestore')),
         );
         return;
       }
 
       final data = doc.data() as Map<String, dynamic>;
       final rol = data['rol'];
+
+      // Cargar datos locales
+      await context.read<ClientProvider>().fetchClients();
+      await context.read<OrderProvider>().fetchOrders();
+      await context.read<VehicleProvider>().fetchVehicles();
 
       // 🚀 Redirección por rol
       if (rol == 'admin') {
@@ -83,9 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on FirebaseAuthException {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Usuario o contraseña incorrectos'),
-        ),
+        const SnackBar(content: Text('Usuario o contraseña incorrectos')),
       );
     }
   }
@@ -160,25 +167,30 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 32),
 
               ElevatedButton(
-  onPressed: _canLogin ? _login : null,
-  style: ElevatedButton.styleFrom(
-    minimumSize: const Size(double.infinity, 50),
-    backgroundColor: _canLogin
-        ? const Color.fromARGB(255, 2, 50, 97)
-        : Colors.grey.shade700,
-    foregroundColor: Colors.white,
-    disabledBackgroundColor: const Color.fromARGB(255, 70, 70, 71),
-    disabledForegroundColor: Colors.white70,
-    elevation: _canLogin ? 4 : 0,
-  ),
-  child: Text(
-    'INGRESAR',
-    style: TextStyle(
-      fontWeight: FontWeight.bold,
-      color: _canLogin ? Colors.white : Colors.white70,
-    ),
-  ),
-),
+                onPressed: _canLogin ? _login : null,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: _canLogin
+                      ? const Color.fromARGB(255, 2, 50, 97)
+                      : Colors.grey.shade700,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color.fromARGB(
+                    255,
+                    70,
+                    70,
+                    71,
+                  ),
+                  disabledForegroundColor: Colors.white70,
+                  elevation: _canLogin ? 4 : 0,
+                ),
+                child: Text(
+                  'INGRESAR',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _canLogin ? Colors.white : Colors.white70,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
