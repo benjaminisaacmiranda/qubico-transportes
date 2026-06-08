@@ -1601,6 +1601,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           title: 'Gestión de Flota',
           subtitle: 'Monitorear, agregar y editar vehículos corporativos',
           onTap: () {
+            context
+                .read<VehicleProvider>()
+                .fetchVehicles(); //Llama a los camiones que estan guardados en Firestore
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FleetManagementScreen()),

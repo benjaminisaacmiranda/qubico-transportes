@@ -1,6 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+
 import '../models/vehicle_model.dart';
 import '../services/database_service.dart';
+
+import '../services/connectivity_service.dart';
 
 class VehicleProvider with ChangeNotifier {
   List<Vehicle> _vehicles = [];
@@ -40,7 +44,32 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final id = await DatabaseService.instance.insert('vehicles', vehicle.toMap());
+      // Siempre guardar localmente
+      final id = await DatabaseService.instance.insert(
+        'vehicles',
+        vehicle.toMap(),
+      );
+
+      // Verificar conexión
+      final isConnected = await ConnectivityService().isConnected();
+
+      if (isConnected) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('vehicles')
+              .doc(vehicle.patente)
+              .set({
+                'name': vehicle.name,
+                'patente': vehicle.patente,
+                'maxWeight': vehicle.maxWeight,
+                'driverName': vehicle.driverName,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+        } catch (e) {
+          debugPrint('Error sincronizando vehículo con Firestore: $e');
+        }
+      }
+
       final newVehicle = Vehicle(
         id: id,
         name: vehicle.name,
@@ -48,6 +77,7 @@ class VehicleProvider with ChangeNotifier {
         maxWeight: vehicle.maxWeight,
         driverName: vehicle.driverName,
       );
+
       _vehicles.add(newVehicle);
     } catch (e) {
       debugPrint('Error adding vehicle: $e');
@@ -60,13 +90,41 @@ class VehicleProvider with ChangeNotifier {
 
   Future<void> updateVehicle(Vehicle vehicle) async {
     if (vehicle.id == null) return;
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await DatabaseService.instance.update('vehicles', vehicle.toMap(), 'id', vehicle.id);
+      // Siempre actualizar SQLite
+      await DatabaseService.instance.update(
+        'vehicles',
+        vehicle.toMap(),
+        'id',
+        vehicle.id,
+      );
+
+      final isConnected = await ConnectivityService().isConnected();
+
+      if (isConnected) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('vehicles')
+              .doc(vehicle.patente)
+              .set({
+                'name': vehicle.name,
+                'patente': vehicle.patente,
+                'maxWeight': vehicle.maxWeight,
+                'driverName': vehicle.driverName,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+        } catch (e) {
+          debugPrint('Error sincronizando actualización: $e');
+        }
+      }
+
       final index = _vehicles.indexWhere((v) => v.id == vehicle.id);
+
       if (index != -1) {
         _vehicles[index] = vehicle;
       }
@@ -79,13 +137,28 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-  Future<void> deleteVehicle(int id) async {
+  Future<void> deleteVehicle(int id, String patente) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
+      // Siempre eliminar localmente
       await DatabaseService.instance.delete('vehicles', 'id', id);
+
+      final isConnected = await ConnectivityService().isConnected();
+
+      if (isConnected) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('vehicles')
+              .doc(patente)
+              .delete();
+        } catch (e) {
+          debugPrint('Error eliminando en Firestore: $e');
+        }
+      }
+
       _vehicles.removeWhere((v) => v.id == id);
     } catch (e) {
       debugPrint('Error deleting vehicle: $e');
@@ -96,20 +169,22 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-  /// Filter vehicles by driver name
+  /// Filtrar vehículos por conductor
   List<Vehicle> getVehiclesByDriver(String driverName) {
     return _vehicles.where((v) => v.driverName == driverName).toList();
   }
 
-  /// Filter vehicles that can carry the given weight
+  /// Filtrar vehículos que soporten cierto peso
   List<Vehicle> getVehiclesByMinCapacity(double minWeight) {
     return _vehicles.where((v) => v.maxWeight >= minWeight).toList();
   }
 
-  /// Search vehicles by name, patente, or driver
+  /// Buscar por nombre, patente o conductor
   List<Vehicle> searchVehicles(String query) {
     if (query.isEmpty) return List.unmodifiable(_vehicles);
+
     final lowerQuery = query.toLowerCase();
+
     return _vehicles.where((v) {
       return v.name.toLowerCase().contains(lowerQuery) ||
           v.patente.toLowerCase().contains(lowerQuery) ||
