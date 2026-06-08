@@ -5,6 +5,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/client_model.dart';
 import '../../models/order_model.dart';
@@ -268,48 +270,87 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildAdminHeader() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
-            child: const Text(
-              'JP',
-              style: TextStyle(
-                color: AppTheme.accentOrange,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'Juan Pére',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: Colors.black,
-                ),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Administrador Centro',
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+ Widget _buildAdminHeader() {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+
+  if (uid == null) {
+    return const SizedBox.shrink();
   }
 
+  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    future: FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get(),
+    builder: (context, snapshot) {
+      String fullName = 'Usuario sin nombre registrado';
+      String role = 'Administrador';
+
+      if (snapshot.hasData && snapshot.data!.exists) {
+        final data = snapshot.data!.data();
+
+        if (data != null) {
+  fullName =
+      (data['fullName']?.toString().trim().isNotEmpty ?? false)
+          ? data['fullName']
+          : 'Usuario sin nombre registrado';
+
+  role = data['rol'] ?? 'Administrador';
+}
+      }
+
+      final initials = fullName
+          .split(' ')
+          .where((name) => name.isNotEmpty)
+          .take(2)
+          .map((name) => name[0].toUpperCase())
+          .join();
+
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
+              child: Text(
+                initials.isNotEmpty ? initials : 'U',
+                style: const TextStyle(
+                  color: AppTheme.accentOrange,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fullName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  role == 'admin' ? 'Administrador' : role,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
   // ================= TAB 1: INICIO =================
   Widget _buildInicioTab() {
     final orderProvider = context.watch<OrderProvider>();
