@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final data = doc.data() as Map<String, dynamic>;
       final rol = data['rol'];
 
-      // 🚀 Redirección por rol
+      // Redirección por rol
       if (rol == 'admin') {
         context.go('/admin');
       } else {

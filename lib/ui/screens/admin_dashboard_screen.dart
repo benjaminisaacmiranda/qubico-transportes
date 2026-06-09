@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../models/client_model.dart';
 import '../../models/order_model.dart';
@@ -200,15 +201,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             color: Colors.white,
           ),
         ),
-        actions: [
+          actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut(); // Destruye la sesión en Firebase
+              if (context.mounted) {
+                context.go('/login'); // Usa go_router para ir al login
+              }
             },
           ),
         ],
@@ -544,7 +544,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       Icon(Icons.check_circle, color: Color(0xFF137333)),
                       SizedBox(width: 12),
                       Text(
-                        'Operación saludable. Sin retrasos críticos.',
+                        'Sin retrasos críticos.',
                         style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF137333)),
                       ),
                     ],
