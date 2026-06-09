@@ -30,30 +30,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Obtenemos el tema dinámico según el rol
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: colorScheme.surface == Colors.white ? const Color(0xFFF2F2F2) : Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: AppTheme.primaryBlue,
+        backgroundColor: colorScheme.primary, // Adaptativo (Negro en Conductor, Azul en Admin)
         elevation: 0,
-        leading: const Padding(
-          padding: EdgeInsets.all(12.0),
+        leading: Padding(
+          padding: const EdgeInsets.all(12.0),
           child: Icon(
             Icons.local_shipping,
-            color: AppTheme.accentOrange,
+            color: colorScheme.secondary, // Adaptativo (Azul intenso o Naranja)
             size: 28,
           ),
         ),
-        title: const Text(
+        title: Text(
           'Qúbico Conductor',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
-            color: Colors.white,
+            color: colorScheme.onPrimary,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: Icon(Icons.logout, color: colorScheme.onPrimary),
             onPressed: () {
               Navigator.pushAndRemoveUntil(
                 context,
@@ -66,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          _buildConductorHeader(),
+          _buildConductorHeader(context),
           Expanded(
             child: IndexedStack(
               index: _currentIndex,
@@ -83,38 +87,36 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.accentOrange,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: colorScheme.secondary,
+        unselectedItemColor: colorScheme.surface == Colors.white ? Colors.black54 : Colors.grey,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: 12,
+          fontSize: 13, // Ligeramente más grande para lectura en exteriores
         ),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.location_on), label: 'Ruta'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2),
-            label: 'Cargas',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+          BottomNavigationBarItem(icon: Icon(Icons.location_on, size: 26), label: 'Ruta'),
+          BottomNavigationBarItem(icon: Icon(Icons.inventory_2, size: 26), label: 'Cargas'),
+          BottomNavigationBarItem(icon: Icon(Icons.person, size: 26), label: 'Perfil'),
         ],
       ),
     );
   }
 
-  Widget _buildConductorHeader() {
+  Widget _buildConductorHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.white,
+      color: colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
           CircleAvatar(
             radius: 26,
-            backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
-            child: const Text(
+            backgroundColor: colorScheme.secondary.withOpacity(0.15),
+            child: Text(
               'JP',
               style: TextStyle(
-                color: AppTheme.accentOrange,
+                color: colorScheme.secondary == Colors.black ? Colors.black : colorScheme.secondary,
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
@@ -123,19 +125,22 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text(
                 '¡Buen viaje, Juan!',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryBlue,
+                  color: colorScheme.onSurface, // Cambia según contraste del tema
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Conductor de Ruta',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 14, 
+                  color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
+                ),
               ),
             ],
           ),
@@ -186,17 +191,11 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final activeOrders = todaysOrders
-        .where((o) => o.status != 'Entregado')
-        .toList();
-    final totalWeight = activeOrders.fold<double>(
-      0.0,
-      (sum, order) => sum + order.weight,
-    );
-    final capacityPercentage = (totalWeight / assignedVehicle.maxWeight).clamp(
-      0.0,
-      1.0,
-    );
+    final activeOrders = todaysOrders.where((o) => o.status != 'Entregado').toList();
+    final totalWeight = activeOrders.fold<double>(0.0, (sum, order) => sum + order.weight);
+    final capacityPercentage = (totalWeight / assignedVehicle.maxWeight).clamp(0.0, 1.0);
+
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
       children: [
@@ -210,12 +209,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Vehicle Info & Capacity Card
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.grey[200]!),
+                  side: BorderSide(color: colorScheme.surface == Colors.white ? Colors.black38 : Colors.grey[200]!, width: 1.5),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -230,26 +228,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text(
                                 assignedVehicle.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
-                                  color: AppTheme.primaryBlue,
+                                  color: colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryBlue.withOpacity(0.1),
+                                  color: colorScheme.primary.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
                                   assignedVehicle.patente,
-                                  style: const TextStyle(
-                                    color: AppTheme.primaryBlue,
+                                  style: TextStyle(
+                                    color: colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),
@@ -257,9 +252,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-                          const Icon(
+                          Icon(
                             Icons.local_shipping_outlined,
-                            color: AppTheme.primaryBlue,
+                            color: colorScheme.primary,
                             size: 36,
                           ),
                         ],
@@ -268,20 +263,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Capacidad Utilizada',
                             style: TextStyle(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w500,
+                              color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
                             '${(capacityPercentage * 100).toStringAsFixed(1)}%',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: capacityPercentage > 0.9
-                                  ? AppTheme.errorColor
-                                  : AppTheme.primaryBlue,
+                              color: capacityPercentage > 0.9 ? colorScheme.error : colorScheme.primary,
                             ),
                           ),
                         ],
@@ -291,22 +284,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(8),
                         child: LinearProgressIndicator(
                           value: capacityPercentage,
-                          minHeight: 12,
-                          backgroundColor: Colors.grey[200],
+                          minHeight: 14,
+                          backgroundColor: Colors.grey[300],
                           valueColor: AlwaysStoppedAnimation<Color>(
                             capacityPercentage > 0.9
-                                ? AppTheme.errorColor
+                                ? colorScheme.error
                                 : capacityPercentage > 0.7
-                                ? AppTheme.accentOrange
-                                : Colors.green,
+                                ? colorScheme.secondary
+                                : Colors.green[700]!,
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Carga total actual: ${totalWeight.toStringAsFixed(1)} kg. Límite máximo: ${assignedVehicle.maxWeight.toStringAsFixed(1)} kg.',
-                        style: const TextStyle(
-                          color: Colors.grey,
+                        style: TextStyle(
+                          color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
                           fontSize: 12,
                         ),
                       ),
@@ -315,15 +308,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 child: Text(
                   'DETALLE DE CARGAS DEL DÍA',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 1.2,
-                    color: Colors.grey,
+                    color: colorScheme.surface == Colors.white ? Colors.black : Colors.grey,
                   ),
                 ),
               ),
@@ -338,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )
               else
-                ...todaysOrders.map((order) => _buildCargoItemCard(order)),
+                ...todaysOrders.map((order) => _buildCargoItemCard(context, order)),
             ],
           ),
         ),
@@ -358,15 +351,11 @@ class _HomeScreenState extends State<HomeScreen> {
         )
         .toList();
 
-    final deliveredCount = todaysOrders
-        .where((o) => o.status == 'Entregado')
-        .length;
-    final inRouteCount = todaysOrders
-        .where((o) => o.status == 'En camino')
-        .length;
-    final incidentsCount = todaysOrders
-        .where((o) => o.status == 'Incidencia')
-        .length;
+    final deliveredCount = todaysOrders.where((o) => o.status == 'Entregado').length;
+    final inRouteCount = todaysOrders.where((o) => o.status == 'En camino').length;
+    final incidentsCount = todaysOrders.where((o) => o.status == 'Incidencia').length;
+
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
       children: [
@@ -379,12 +368,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Profile Identity Card
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.grey[200]!),
+                  side: BorderSide(color: colorScheme.surface == Colors.white ? Colors.black38 : Colors.grey[200]!, width: 1.5),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -392,13 +380,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       CircleAvatar(
                         radius: 36,
-                        backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
-                        child: const Text(
+                        backgroundColor: colorScheme.primary.withOpacity(0.12),
+                        child: Text(
                           'JP',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryBlue,
+                            color: colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -406,28 +394,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Text(
                               'Juan Pérez',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
-                                color: AppTheme.primaryBlue,
+                                color: colorScheme.onSurface,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
                               'RUT: 12.345.678-9',
                               style: TextStyle(
-                                color: Colors.grey,
+                                color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
                                 fontSize: 13,
                               ),
                             ),
-                            SizedBox(height: 2),
+                            const SizedBox(height: 2),
                             Text(
                               'juan@qubico.cl',
                               style: TextStyle(
-                                color: Colors.grey,
+                                color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
                                 fontSize: 13,
                               ),
                             ),
@@ -439,60 +427,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Statistics Grid Title
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 child: Text(
                   'RESUMEN OPERATIVO DE HOY',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 1.2,
-                    color: Colors.grey,
+                    color: colorScheme.surface == Colors.white ? Colors.black : Colors.grey,
                   ),
                 ),
               ),
-
-              // 2x2 Stats Grid
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: 2,
-                childAspectRatio: 1.4,
+                childAspectRatio: 1.3,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 children: [
-                  _buildStatItem(
-                    'Asignadas',
-                    '${todaysOrders.length}',
-                    Icons.assignment_outlined,
-                    Colors.blue,
-                  ),
-                  _buildStatItem(
-                    'Entregadas',
-                    '$deliveredCount',
-                    Icons.check_circle_outline,
-                    Colors.green,
-                  ),
-                  _buildStatItem(
-                    'En Tránsito',
-                    '$inRouteCount',
-                    Icons.local_shipping_outlined,
-                    AppTheme.accentOrange,
-                  ),
-                  _buildStatItem(
-                    'Incidencias',
-                    '$incidentsCount',
-                    Icons.warning_amber_rounded,
-                    AppTheme.errorColor,
-                  ),
+                  _buildStatItem(context, 'Asignadas', '${todaysOrders.length}', Icons.assignment_outlined, Colors.blue[800]!),
+                  _buildStatItem(context, 'Entregadas', '$deliveredCount', Icons.check_circle_outline, Colors.green[700]!),
+                  _buildStatItem(context, 'En Tránsito', '$inRouteCount', Icons.local_shipping_outlined, colorScheme.secondary),
+                  _buildStatItem(context, 'Incidencias', '$incidentsCount', Icons.warning_amber_rounded, colorScheme.error),
                 ],
               ),
-
               const SizedBox(height: 32),
-
-              // Logout Button
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ElevatedButton.icon(
@@ -506,17 +467,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.logout, color: Colors.white),
                   label: const Text(
                     'Cerrar Sesión',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.errorColor,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    backgroundColor: colorScheme.error,
+                    minimumSize: const Size(double.infinity, 48), // Cumple con los 44px táctiles
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                 ),
@@ -546,27 +502,15 @@ class _HomeScreenState extends State<HomeScreen> {
         )
         .toList();
 
-    final List<String> months = [
-      'Ene',
-      'Feb',
-      'Mar',
-      'Abr',
-      'May',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dic',
-    ];
+    final List<String> months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     final dateStr = '${today.day} ${months[today.month - 1]}';
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.only(top: 60, left: 24, right: 24, bottom: 24),
-      decoration: const BoxDecoration(
-        color: AppTheme.primaryBlue,
-        borderRadius: BorderRadius.only(
+      padding: const EdgeInsets.only(top: 24, left: 24, right: 24, bottom: 24),
+      decoration: BoxDecoration(
+        color: colorScheme.primary, // Cambia dinámicamente
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
         ),
@@ -577,7 +521,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              GestureDetector(
+              // Agrandamos el área táctil del texto de cierre a un botón accesible
+              InkWell(
                 onTap: () {
                   Navigator.pushAndRemoveUntil(
                     context,
@@ -585,25 +530,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     (route) => false,
                   );
                 },
-                child: const Text(
-                  'Cerrar App',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  child: Text(
+                    'Cerrar App',
+                    style: TextStyle(color: colorScheme.onPrimary.withOpacity(0.85), fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: colorScheme.onPrimary.withOpacity(0.25),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   'Hoy, $dateStr',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
+                  style: TextStyle(
+                    color: colorScheme.onPrimary,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -613,8 +558,8 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: colorScheme.onPrimary,
               fontSize: 28,
               fontWeight: FontWeight.bold,
             ),
@@ -622,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 4),
           Text(
             subtitleBuilder(todaysOrders),
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
+            style: TextStyle(color: colorScheme.onPrimary.withOpacity(0.85), fontSize: 15),
           ),
         ],
       ),
@@ -632,7 +577,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildRouteTimeline(BuildContext context) {
     final provider = context.watch<OrderProvider>();
     final clientProvider = context.read<ClientProvider>();
-
     final today = DateTime.now();
     final todaysOrders = provider.orders
         .where(
@@ -643,20 +587,18 @@ class _HomeScreenState extends State<HomeScreen> {
         )
         .toList();
 
-    if (provider.isLoading)
-      return const Center(child: CircularProgressIndicator());
-    if (todaysOrders.isEmpty)
+    if (provider.isLoading) return const Center(child: CircularProgressIndicator());
+    if (todaysOrders.isEmpty) {
       return const Center(
         child: Text(
           'No hay paradas hoy.',
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       );
+    }
 
-    // Find the next active order (first one that is 'Pendiente' or 'En camino')
-    int nextOrderIndex = todaysOrders.indexWhere(
-      (o) => o.status == 'Pendiente' || o.status == 'En camino',
-    );
+    int nextOrderIndex = todaysOrders.indexWhere((o) => o.status == 'Pendiente' || o.status == 'En camino');
+    final colorScheme = Theme.of(context).colorScheme;
 
     return ListView.builder(
       padding: const EdgeInsets.only(top: 24, left: 16, right: 16, bottom: 24),
@@ -665,17 +607,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final order = todaysOrders[index];
         Client client;
         try {
-          client = clientProvider.clients.firstWhere(
-            (c) => c.rut == order.clientId,
-          );
+          client = clientProvider.clients.firstWhere((c) => c.rut == order.clientId);
         } catch (e) {
-          client = Client(
-            rut: order.clientId,
-            name: 'Cliente Desconocido',
-            phone: '',
-            email: '',
-            billingAddress: '',
-          );
+          client = Client(rut: order.clientId, name: 'Cliente Desconocido', phone: '', email: '', billingAddress: '');
         }
 
         final isNext = index == nextOrderIndex;
@@ -684,19 +618,16 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Timeline line and dot
               Column(
                 children: [
                   Container(
-                    width: 16,
-                    height: 16,
+                    width: 18,
+                    height: 18,
                     margin: const EdgeInsets.only(top: 16),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isNext
-                            ? AppTheme.accentOrange
-                            : Colors.grey[300]!,
+                        color: isNext ? colorScheme.secondary : Colors.grey[400]!,
                         width: 4,
                       ),
                       color: Colors.white,
@@ -704,16 +635,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   if (index < todaysOrders.length - 1)
                     Expanded(
-                      child: Container(width: 2, color: Colors.grey[300]),
+                      child: Container(width: 2.5, color: Colors.grey[400]),
                     ),
                 ],
               ),
               const SizedBox(width: 16),
-              // Card
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 24),
-                  child: _buildOrderCard(order, client, isNext),
+                  child: _buildOrderCard(context, order, client, isNext),
                 ),
               ),
             ],
@@ -723,15 +653,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildOrderCard(Order order, Client client, bool isNext) {
+  Widget _buildOrderCard(BuildContext context, Order order, Client client, bool isNext) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isHighContrast = colorScheme.surface == Colors.white;
+
     return Card(
       margin: EdgeInsets.zero,
       elevation: isNext ? 4 : 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isNext
-            ? const BorderSide(color: AppTheme.accentOrange, width: 2)
-            : BorderSide(color: Colors.transparent),
+            ? BorderSide(color: colorScheme.secondary, width: 2.5) // Borde más marcado
+            : BorderSide(color: isHighContrast ? Colors.black26 : Colors.transparent),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -740,25 +673,26 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              decoration: const BoxDecoration(
-                color: AppTheme.accentOrange,
-                borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                color: colorScheme.secondary,
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(10),
                   topRight: Radius.circular(10),
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   Text(
                     'PRÓXIMO DESPACHO',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: colorScheme.secondary == Colors.black ? Colors.white : Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
+                      letterSpacing: 1,
                     ),
                   ),
-                  Icon(Icons.navigation, color: Colors.white, size: 16),
+                  const Icon(Icons.navigation, color: Colors.white, size: 16),
                 ],
               ),
             ),
@@ -773,129 +707,97 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: Text(
                         client.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: AppTheme.primaryBlue,
+                          fontSize: 17, // Legibilidad aumentada
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ),
-                    _buildStatusBadge(order.status),
+                    _buildStatusBadge(context, order.status),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 16,
-                      color: AppTheme.primaryBlue,
-                    ),
-                    const SizedBox(width: 4),
+                    Icon(Icons.location_on_outlined, size: 18, color: colorScheme.primary),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         order.address,
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13,
+                        style: TextStyle(
+                          color: isHighContrast ? Colors.black : Colors.grey[800],
+                          fontSize: 14,
+                          fontWeight: isHighContrast ? FontWeight.w500 : FontWeight.normal,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.blue[50],
+                    color: isHighContrast ? const Color(0xFFEAA100).withOpacity(0.15) : Colors.blue[50],
                     borderRadius: BorderRadius.circular(8),
+                    border: isHighContrast ? Border.all(color: Colors.black45) : null,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: AppTheme.primaryBlue,
-                      ),
-                      const SizedBox(width: 4),
+                      Icon(Icons.access_time, size: 16, color: isHighContrast ? Colors.black : colorScheme.primary),
+                      const SizedBox(width: 6),
                       Text(
                         order.timeWindow,
-                        style: const TextStyle(
-                          color: AppTheme.primaryBlue,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                        style: TextStyle(
+                          color: isHighContrast ? Colors.black : colorScheme.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+                // Botones con altura mínima forzada a 48px para cumplir holgadamente los 44px requeridos
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () => _makePhoneCall(client.phone),
-                        icon: const Icon(Icons.phone, size: 16),
+                        icon: const Icon(Icons.phone, size: 18),
                         label: const Text('Llamar'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.primaryBlue,
-                          side: const BorderSide(color: AppTheme.primaryBlue),
-                          backgroundColor: Colors.blue[50],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: colorScheme.onSurface,
+                          side: BorderSide(color: colorScheme.onSurface, width: 2),
+                          backgroundColor: isHighContrast ? Colors.white : Colors.blue[50],
+                          minimumSize: const Size(0, 48), 
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          if (order.status == 'Entregado' ||
-                              order.status == 'Incidencia') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => OrderDetailScreen(order: order),
-                              ),
-                            );
+                          if (order.status == 'Entregado' || order.status == 'Incidencia') {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)));
                           } else if (order.status == 'Pendiente') {
-                            context.read<OrderProvider>().updateOrderStatus(
-                              order.id!,
-                              'En camino',
-                            );
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MapScreen(selectedOrder: order),
-                              ),
-                            );
+                            context.read<OrderProvider>().updateOrderStatus(order.id!, 'En camino');
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => MapScreen(selectedOrder: order)));
                           } else if (order.status == 'En camino') {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => OrderDetailScreen(order: order),
-                              ),
-                            );
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)));
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isNext
-                              ? AppTheme.accentOrange
-                              : AppTheme.primaryBlue,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          backgroundColor: isNext ? colorScheme.secondary : colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
+                          minimumSize: const Size(0, 48),
+                          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         child: Text(
-                          (order.status == 'Entregado' ||
-                                  order.status == 'Incidencia')
+                          (order.status == 'Entregado' || order.status == 'Incidencia')
                               ? 'Ver Resumen'
                               : (order.status == 'Pendiente')
                               ? 'Iniciar Entrega'
@@ -913,18 +815,20 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCargoItemCard(Order order) {
-    // Beautiful badges depending on load type
-    Color badgeColor = AppTheme.primaryBlue;
-    if (order.loadType == 'Construcción') badgeColor = AppTheme.accentOrange;
-    if (order.loadType == 'Eventos') badgeColor = Colors.purple;
+  Widget _buildCargoItemCard(BuildContext context, Order order) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isHighContrast = colorScheme.surface == Colors.white;
+    
+    Color badgeColor = colorScheme.primary;
+    if (order.loadType == 'Construcción') badgeColor = isHighContrast ? Colors.black : AppTheme.accentOrange;
+    if (order.loadType == 'Eventos') badgeColor = isHighContrast ? Colors.black : Colors.purple;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: isHighContrast ? Colors.black45 : Colors.grey[200]!, width: isHighContrast ? 1.5 : 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -937,26 +841,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: Text(
                     'Carga #${order.id}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryBlue,
+                      color: colorScheme.onSurface,
                       fontSize: 16,
                     ),
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: badgeColor.withOpacity(0.1),
+                    color: badgeColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(6),
+                    border: isHighContrast ? Border.all(color: Colors.black) : null,
                   ),
                   child: Text(
                     order.loadType,
                     style: TextStyle(
-                      color: badgeColor,
+                      color: isHighContrast ? Colors.black : badgeColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
                     ),
@@ -967,54 +869,40 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(
-                  Icons.fitness_center_outlined,
-                  size: 16,
-                  color: Colors.grey,
-                ),
+                Icon(Icons.fitness_center_outlined, size: 18, color: colorScheme.primary),
                 const SizedBox(width: 8),
-                Text('Peso: ', style: const TextStyle(color: Colors.grey)),
+                Text('Peso: ', style: TextStyle(color: isHighContrast ? Colors.black87 : Colors.grey)),
                 Text(
                   '${order.weight} kg',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurface),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(
-                  Icons.straighten_outlined,
-                  size: 16,
-                  color: Colors.grey,
-                ),
+                Icon(Icons.straighten_outlined, size: 18, color: colorScheme.primary),
                 const SizedBox(width: 8),
-                Text('Dim: ', style: const TextStyle(color: Colors.grey)),
+                Text('Dim: ', style: TextStyle(color: isHighContrast ? Colors.black87 : Colors.grey)),
                 Text(
                   '${order.length} x ${order.width} x ${order.height} m',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurface),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: Colors.grey,
-                ),
+                Icon(Icons.location_on_outlined, size: 18, color: colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     order.address,
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    style: TextStyle(
+                      color: isHighContrast ? Colors.black : Colors.grey[700], 
+                      fontSize: 13,
+                      fontWeight: isHighContrast ? FontWeight.w500 : FontWeight.normal,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1026,70 +914,80 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(BuildContext context, String status) {
+    final isHighContrast = Theme.of(context).colorScheme.surface == Colors.white;
     Color badgeColor;
     switch (status) {
       case 'Entregado':
-        badgeColor = Colors.green;
+        badgeColor = Colors.green[800]!;
         break;
       case 'Incidencia':
-        badgeColor = AppTheme.errorColor;
+        badgeColor = const Color(0xFFB00020);
         break;
       case 'En camino':
-        badgeColor = AppTheme.accentOrange;
+        badgeColor = isHighContrast ? Colors.black : AppTheme.accentOrange;
         break;
       default:
-        badgeColor = Colors.grey;
+        badgeColor = Colors.grey[800]!;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.1),
+        color: badgeColor.withOpacity(0.12),
         borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: badgeColor, width: 1),
       ),
       child: Text(
         status.toUpperCase(),
         style: TextStyle(
           color: badgeColor,
           fontWeight: FontWeight.bold,
-          fontSize: 10,
+          fontSize: 11,
         ),
       ),
     );
   }
 
   Widget _buildStatItem(
+    BuildContext context,
     String label,
     String value,
     IconData icon,
     Color color,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isHighContrast = colorScheme.surface == Colors.white;
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[200]!),
+        side: BorderSide(color: isHighContrast ? Colors.black45 : Colors.grey[200]!, width: isHighContrast ? 1.5 : 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 24),
+            Icon(icon, color: isHighContrast ? Colors.black : color, size: 26),
             const SizedBox(height: 6),
             Text(
               value,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: AppTheme.primaryBlue,
+                fontSize: 22,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(color: Colors.grey, fontSize: 11),
+              style: TextStyle(
+                color: isHighContrast ? Colors.black87 : Colors.grey[700], 
+                fontSize: 12,
+                fontWeight: isHighContrast ? FontWeight.bold : FontWeight.normal,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
