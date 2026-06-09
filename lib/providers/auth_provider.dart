@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:qubico/models/user_model.dart';
-import 'package:qubico/services/database_service.dart';
-import 'package:qubico/services/security_service.dart';
+
+// 🎯 ENLACES RELATIVOS
+import '../models/user_model.dart';
+import '../services/database_service.dart';
+import '../services/security_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   User? _currentUser;
@@ -22,8 +24,8 @@ class AuthProvider extends ChangeNotifier {
   bool get isAdmin => _currentUser?.role == UserRole.admin;
   bool get isLocked => _lockoutUntil != null && DateTime.now().isBefore(_lockoutUntil!);
 
-  Future<bool> login(String email, String password) async {
-    // Check lockout
+  // 🔄 Agregamos el parámetro opcional 'isFirebaseVerified'
+  Future<bool> login(String email, String password, {bool isFirebaseVerified = false}) async {
     if (isLocked) {
       _errorMessage = 'Cuenta bloqueada. Intente en ${_lockoutUntil!.difference(DateTime.now()).inMinutes + 1} minutos.';
       notifyListeners();
@@ -35,19 +37,30 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // 🔍 Buscar usuario en la base de datos local SQLite
       final userData = await DatabaseService.instance.getUserByEmail(email);
+
       if (userData == null) {
         _handleFailedAttempt();
         return false;
       }
 
       final user = User.fromMap(userData);
-
-      // Verify password using SecurityService
       final storedPassword = userData['password'] as String? ?? '';
-      if (!SecurityService.verifyPassword(password, storedPassword)) {
-        _handleFailedAttempt();
-        return false;
+
+      // Verificar si la contraseña coincide localmente
+      bool isPasswordValid = SecurityService.verifyPassword(password, storedPassword);
+
+      if (!isPasswordValid) {
+        // 🛠️ SI FIREBASE YA DIJO QUE SÍ, CORREGIMOS EL HASH LOCAL DE INMEDIATO
+        if (isFirebaseVerified) {
+          final newHash = SecurityService.hashPassword(password);
+          await DatabaseService.instance.update('users', {'password': newHash}, 'id', user.id);
+          isPasswordValid = true; // Forzamos la aprobación local
+        } else {
+          _handleFailedAttempt();
+          return false;
+        }
       }
 
       _currentUser = user;
