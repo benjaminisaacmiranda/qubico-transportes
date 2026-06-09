@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -19,88 +21,98 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   Future<void> _login() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-  try {
-    // 🔐 Login con Firebase Auth
-    final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    if (!mounted) return;
-
-    // 📦 Buscar datos en Firestore por UID
-    final uid = cred.user!.uid;
-
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get();
-
-    if (!doc.exists) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario no existe en Firestore')),
+        const SnackBar(content: Text('Por favor, rellene todos los campos')),
       );
       return;
     }
 
-    final data = doc.data() as Map<String, dynamic>;
-    final rol = data['rol'];
+    try {
+      // 1️⃣ 🔐 Login con Firebase Auth (Nube)
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    // 🚀 Redirección por rol
-    if (rol == 'admin') {
-      context.go('/admin');
-    } else {
-      context.go('/home');
+      if (!mounted) return;
+
+      // 2️⃣ 🔄 Sincronizar con el AuthProvider local (SQLite)
+      // Esto previene que GoRouter rebote al usuario de vuelta al Login
+      final authProvider = context.read<AuthProvider>();
+      final localLoginSuccess = await authProvider.login(email, password);
+
+      if (!localLoginSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authProvider.errorMessage ?? 'Error de autenticación local')),
+        );
+        await FirebaseAuth.instance.signOut(); // Deslogueamos de Firebase si falla local
+        return;
+      }
+
+      // 3️⃣ 📦 Buscar datos en Firestore por UID para la redirección de rol
+      final uid = cred.user!.uid;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!doc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario no existe en Firestore')),
+        );
+        return;
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      final rol = data['rol'];
+
+      // 4️⃣ 🚀 Redirección por rol usando GoRouter
+      if (rol == 'admin') {
+        context.go('/admin');
+      } else {
+        context.go('/home');
+      }
+
+    } on FirebaseAuthException catch (e) {
+      String mensajeError = 'Usuario o contraseña incorrectos';
+      if (e.code == 'user-disabled') {
+        mensajeError = 'Este usuario ha sido deshabilitado.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensajeError)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error inesperado: $e')),
+      );
     }
-
-  } on FirebaseAuthException {
-    // ❌ error login
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Usuario o contraseña incorrectos'),
-      ),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.local_shipping,
-                size: 100,
-                color: AppTheme.primaryBlue,
-              ),
-              const SizedBox(height: 16),
               const Text(
-                'QÚBICO',
+                'QUBICO',
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 36,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryBlue,
-                  letterSpacing: 4,
-                ),
-              ),
-              const Text(
-                'TRANSPORTES',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.accentOrange,
                   letterSpacing: 2,
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 40),
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -135,8 +147,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
                   backgroundColor: AppTheme.primaryBlue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text('INGRESAR'),
+                child: const Text(
+                  'INGRESAR',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                ),
               ),
             ],
           ),
