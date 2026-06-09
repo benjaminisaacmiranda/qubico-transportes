@@ -230,20 +230,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextFormField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre Completo',
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      validator: (value){
-                        if (value==null || value.trim().isEmpty) {
-                          return 'Porfavor, ingrese un nombre completo';
-                        }
-                        return null;
-                      }
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
                       controller: rutController,
                       keyboardType: TextInputType.text,
                       inputFormatters: [

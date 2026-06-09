@@ -51,7 +51,7 @@ class FleetManagementScreen extends StatelessWidget {
     );
 
     // Intentar pre-seleccionar el conductor actual del vehículo
-    String? selectedDriverName = vehicle?.driverName?.isNotEmpty == true
+    String? selectedDriverName = vehicle?.driverName.isNotEmpty == true
         ? vehicle!.driverName
         : null;
 
@@ -147,7 +147,7 @@ class FleetManagementScreen extends StatelessWidget {
                         )
                       else
                         DropdownButtonFormField<String>(
-                          value: selectedDriverName,
+                          value: selectedDriverName, 
                           decoration: const InputDecoration(
                             labelText: 'Conductor Asignado',
                             prefixIcon: Icon(Icons.drive_eta_outlined),
