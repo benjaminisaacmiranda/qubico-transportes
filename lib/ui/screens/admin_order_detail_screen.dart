@@ -54,7 +54,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     } catch (_) {
       client = Client(
         rut: widget.order.clientId,
-        name: 'Cliente Desconocido',
+        name: 'Cliente Desconocido ADMIN ORDER DETAIL SCREEN',
         phone: 'No disponible',
         email: 'No disponible',
         billingAddress: widget.order.address,

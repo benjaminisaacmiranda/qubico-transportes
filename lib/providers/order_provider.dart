@@ -1,32 +1,51 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+
 import '../models/order_model.dart';
+import '../services/connectivity_service.dart';
 import '../services/database_service.dart';
 
 class OrderProvider with ChangeNotifier {
+  final ConnectivityService _connectivityService = ConnectivityService();
+
   List<Order> _orders = [];
   bool _isLoading = false;
   String? _errorMessage;
+
+  OrderProvider() {
+    _listenToConnectivityChanges();
+  }
 
   List<Order> get orders => List.unmodifiable(_orders);
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
 
-  void clearError() {
-    _errorMessage = null;
-    notifyListeners();
-  }
-
   /// Valid status transitions map
   static const Map<String, List<String>> _validTransitions = {
     'Pendiente': ['En camino', 'Incidencia'],
     'En camino': ['Entregado', 'Incidencia'],
     'Incidencia': ['Pendiente', 'En camino'],
-    'Entregado': [], // terminal state
+    'Entregado': [],
   };
 
   final List<Map<String, dynamic>> _generatedReports = [];
-  List<Map<String, dynamic>> get generatedReports => List.unmodifiable(_generatedReports);
+
+  List<Map<String, dynamic>> get generatedReports =>
+      List.unmodifiable(_generatedReports);
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void _listenToConnectivityChanges() {
+    _connectivityService.connectivityStream.listen((result) {
+      if (result != ConnectivityResult.none) {
+        syncPendingOrders();
+      }
+    });
+  }
 
   void addGeneratedReport(String date, String type, String filePath) {
     _generatedReports.add({
@@ -35,6 +54,7 @@ class OrderProvider with ChangeNotifier {
       'generatedAt': DateTime.now().toIso8601String(),
       'filePath': filePath,
     });
+
     notifyListeners();
   }
 
@@ -47,30 +67,35 @@ class OrderProvider with ChangeNotifier {
       final data = await DatabaseService.instance.queryAll('orders');
       _orders = data.map((e) => Order.fromMap(e)).toList();
     } catch (e) {
-      debugPrint('DB Error in fetchOrders, using resilient in-memory fallback: $e');
+      debugPrint(
+        'DB Error in fetchOrders, using resilient in-memory fallback: $e',
+      );
+
       _errorMessage = 'Error al cargar pedidos: $e';
+
       if (_orders.isEmpty) {
         _orders = [];
       }
     } finally {
-      // RF6: Sort by time window start, then FIFO
       _sortOrders();
+
       _isLoading = false;
+
       notifyListeners();
     }
   }
 
   void _sortOrders() {
     _orders.sort((a, b) {
-      // Simple parse of "HH:mm - HH:mm"
       final aStart = a.timeWindow.split(' - ').first;
       final bStart = b.timeWindow.split(' - ').first;
 
       int cmp = aStart.compareTo(bStart);
+
       if (cmp == 0) {
-        // FIFO: Assuming lower ID means registered earlier
         return (a.id ?? 0).compareTo(b.id ?? 0);
       }
+
       return cmp;
     });
   }
@@ -78,12 +103,23 @@ class OrderProvider with ChangeNotifier {
   Future<void> addOrder(Order order, {String userId = 'Sistema'}) async {
     _isLoading = true;
     _errorMessage = null;
+
     notifyListeners();
 
     try {
+      final connected = await _connectivityService.isConnected();
+
       final id = await DatabaseService.instance.insert('orders', order.toMap());
 
-      // Log creation in audit trail
+      if (!connected) {
+        await DatabaseService.instance.update(
+          'orders',
+          {'pending_sync': 1},
+          'id',
+          id,
+        );
+      }
+
       await DatabaseService.instance.insert('audit_logs', {
         'user_id': userId,
         'action': 'Creación Pedido #$id',
@@ -94,9 +130,16 @@ class OrderProvider with ChangeNotifier {
 
       await fetchOrders();
     } catch (e) {
-      debugPrint('DB Error in addOrder, performing resilient in-memory add: $e');
+      debugPrint(
+        'DB Error in addOrder, performing resilient in-memory add: $e',
+      );
+
       _errorMessage = 'Error al crear pedido: $e';
-      final newId = _orders.isEmpty ? 1 : (_orders.map((o) => o.id ?? 0).reduce((a, b) => a > b ? a : b) + 1);
+
+      final newId = _orders.isEmpty
+          ? 1
+          : (_orders.map((o) => o.id ?? 0).reduce((a, b) => a > b ? a : b) + 1);
+
       final newOrder = Order(
         id: newId,
         clientId: order.clientId,
@@ -110,11 +153,15 @@ class OrderProvider with ChangeNotifier {
         status: order.status,
         scheduledDate: order.scheduledDate,
         driverId: order.driverId,
+        pendingSync: true,
       );
+
       _orders.add(newOrder);
+
       _sortOrders();
     } finally {
       _isLoading = false;
+
       notifyListeners();
     }
   }
@@ -129,53 +176,79 @@ class OrderProvider with ChangeNotifier {
   }) async {
     _isLoading = true;
     _errorMessage = null;
+
     notifyListeners();
 
-    // Fetch old status for logging and validation
     String oldStatus = 'Pendiente';
-    String driver = 'Conductor';
+
     try {
       final oldOrder = _orders.firstWhere((o) => o.id == id);
+
       oldStatus = oldOrder.status;
-      driver = oldOrder.driverId ?? 'Conductor';
     } catch (_) {}
 
-    // Validate status transition
     final allowedTransitions = _validTransitions[oldStatus] ?? [];
+
     if (!allowedTransitions.contains(newStatus)) {
-      _errorMessage = 'Transición de estado no permitida: "$oldStatus" → "$newStatus"';
+      _errorMessage =
+          'Transición de estado no permitida: "$oldStatus" → "$newStatus"';
+
       _isLoading = false;
+
       notifyListeners();
+
       return;
     }
 
     try {
+      final connected = await _connectivityService.isConnected();
+
       final Map<String, dynamic> updates = {
         'status': newStatus,
         'delivery_time': DateTime.now().toIso8601String(),
       };
-      if (incidentReason != null) updates['incident_reason'] = incidentReason;
-      if (evidencePath != null) updates['evidence_path'] = evidencePath;
-      if (signaturePath != null) updates['signature_path'] = signaturePath;
+
+      if (incidentReason != null) {
+        updates['incident_reason'] = incidentReason;
+      }
+
+      if (evidencePath != null) {
+        updates['evidence_path'] = evidencePath;
+      }
+
+      if (signaturePath != null) {
+        updates['signature_path'] = signaturePath;
+      }
+
+      if (connected) {
+        updates['pending_sync'] = 0;
+        updates['sync_attempts'] = 0;
+      } else {
+        updates['pending_sync'] = 1;
+      }
 
       await DatabaseService.instance.update('orders', updates, 'id', id);
 
-      // Log state transition in audit trail
       await DatabaseService.instance.insert('audit_logs', {
         'user_id': userId,
         'action': 'Actualización Estado Pedido #$id',
         'timestamp': DateTime.now().toIso8601String(),
         'old_value': oldStatus,
-        'new_value': newStatus + (incidentReason != null ? ' ($incidentReason)' : ''),
+        'new_value':
+            newStatus + (incidentReason != null ? ' ($incidentReason)' : ''),
       });
 
       await fetchOrders();
     } catch (e) {
-      debugPrint('DB Error in updateOrderStatus, performing resilient in-memory update: $e');
+      debugPrint('DB Error in updateOrderStatus: $e');
+
       _errorMessage = 'Error al actualizar estado: $e';
+
       final idx = _orders.indexWhere((o) => o.id == id);
+
       if (idx != -1) {
         final o = _orders[idx];
+
         _orders[idx] = Order(
           id: o.id,
           clientId: o.clientId,
@@ -193,24 +266,74 @@ class OrderProvider with ChangeNotifier {
           evidencePath: evidencePath ?? o.evidencePath,
           signaturePath: signaturePath ?? o.signaturePath,
           deliveryTime: DateTime.now(),
+          pendingSync: true,
         );
+
         _sortOrders();
       }
     } finally {
       _isLoading = false;
+
       notifyListeners();
+    }
+  }
+
+  Future<void> syncPendingOrders() async {
+    try {
+      final db = await DatabaseService.instance.database;
+
+      final pending = await db.query(
+        'orders',
+        where: 'pending_sync = ?',
+        whereArgs: [1],
+      );
+
+      for (final orderMap in pending) {
+        final order = Order.fromMap(orderMap);
+
+        try {
+          await Future.delayed(const Duration(seconds: 1));
+
+          await db.update(
+            'orders',
+            {'pending_sync': 0, 'sync_attempts': 0},
+            where: 'id = ?',
+            whereArgs: [order.id],
+          );
+        } catch (e) {
+          final attempts = order.syncAttempts + 1;
+
+          await db.update(
+            'orders',
+            {'sync_attempts': attempts},
+            where: 'id = ?',
+            whereArgs: [order.id],
+          );
+
+          if (attempts >= 3) {
+            _errorMessage = 'No se pudo sincronizar el pedido #${order.id}';
+
+            notifyListeners();
+          }
+        }
+      }
+
+      await fetchOrders();
+    } catch (e) {
+      debugPrint('Error syncing orders: $e');
     }
   }
 
   Future<List<Map<String, dynamic>>> getAuditLogsForOrder(int orderId) async {
     try {
-      // Use SQL WHERE clause instead of fetching all and filtering in Dart
       final db = await DatabaseService.instance.database;
+
       final data = await db.query(
         'audit_logs',
         where: 'action LIKE ?',
         whereArgs: ['%#$orderId%'],
       );
+
       return data;
     } catch (_) {
       return [];
@@ -220,11 +343,9 @@ class OrderProvider with ChangeNotifier {
   Future<List<Map<String, dynamic>>> getGlobalAuditLogs() async {
     try {
       final db = await DatabaseService.instance.database;
-      // Sort by timestamp descending (newest first) via SQL
-      final logs = await db.query(
-        'audit_logs',
-        orderBy: 'timestamp DESC',
-      );
+
+      final logs = await db.query('audit_logs', orderBy: 'timestamp DESC');
+
       return logs;
     } catch (_) {
       return [];
@@ -233,17 +354,28 @@ class OrderProvider with ChangeNotifier {
 
   Future<void> updateOrder(Order order, {String userId = 'Sistema'}) async {
     if (order.id == null) return;
+
     _isLoading = true;
     _errorMessage = null;
+
     notifyListeners();
 
     try {
-      await DatabaseService.instance.update('orders', order.toMap(), 'id', order.id);
+      await DatabaseService.instance.update(
+        'orders',
+        order.toMap(),
+        'id',
+        order.id,
+      );
+
       await fetchOrders();
     } catch (e) {
       debugPrint('DB Error in updateOrder: $e');
+
       _errorMessage = 'Error al actualizar pedido: $e';
+
       _isLoading = false;
+
       notifyListeners();
     }
   }
@@ -251,12 +383,12 @@ class OrderProvider with ChangeNotifier {
   Future<void> deleteOrder(int id, {String userId = 'Sistema'}) async {
     _isLoading = true;
     _errorMessage = null;
+
     notifyListeners();
 
     try {
       await DatabaseService.instance.delete('orders', 'id', id);
 
-      // Log deletion in audit trail
       await DatabaseService.instance.insert('audit_logs', {
         'user_id': userId,
         'action': 'Eliminación Pedido #$id',
@@ -268,19 +400,24 @@ class OrderProvider with ChangeNotifier {
       await fetchOrders();
     } catch (e) {
       debugPrint('DB Error in deleteOrder: $e');
+
       _errorMessage = 'Error al eliminar pedido: $e';
+
       _isLoading = false;
+
       notifyListeners();
     }
   }
 
-  // RF13: Punctuality Indicator
   String getPunctualityStatus(Order order) {
-    if (order.deliveryTime == null) return "Pendiente";
+    if (order.deliveryTime == null) {
+      return "Pendiente";
+    }
 
-    // Extract end of window "HH:mm"
     final endWindowStr = order.timeWindow.split(' - ').last;
+
     final parts = endWindowStr.split(':');
+
     final endWindow = DateTime(
       order.scheduledDate.year,
       order.scheduledDate.month,
@@ -291,8 +428,10 @@ class OrderProvider with ChangeNotifier {
 
     if (order.deliveryTime!.isAfter(endWindow)) {
       final diff = order.deliveryTime!.difference(endWindow).inMinutes;
+
       return "Atrasado ($diff min)";
     }
+
     return "A tiempo";
   }
 }

@@ -77,7 +77,7 @@ El código está estructurado bajo los más altos estándares de desarrollo móv
 1. **Prerequisitos:** SDK de Flutter instalado (>= 3.x), emulador o dispositivo físico conectado por ADB.
 2. Clona el repositorio:
    ```bash
-   git clone https://github.com/luisbustamanteuautonoma/qubico-transportes.git
+   git clone https://github.com/benjaminisaacmiranda/qubico-transportes.git
    ```
 3. Instala las dependencias:
    ```bash

@@ -53,7 +53,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   String? _selectedClientOption = 'manual';
   bool _isManualClient = true;
-  bool _saveAsFrequent = false;
+
   Vehicle? _selectedVehicle;
   String _selectedWindow = '08:00 - 10:00';
   String _selectedLoad = 'Paquetería';
@@ -80,7 +80,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     setState(() {
       _selectedClientOption = 'manual';
       _isManualClient = true;
-      _saveAsFrequent = false;
       _selectedVehicle = null;
       _rutController.clear();
       _clientNameController.clear();
@@ -126,7 +125,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           "${_calleController.text.trim()} ${_numeroController.text.trim()}, ${_comunaController.text.trim()}";
 
       // Guardar como cliente frecuente si es manual y la casilla está marcada
-      if (_isManualClient && _saveAsFrequent) {
+      if (_isManualClient) {
         final clientRut = _rutController.text.trim();
         final clientName = _clientNameController.text.trim();
         final clientPhone = _phoneController.text.trim();
@@ -140,6 +139,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             email: clientEmail,
             billingAddress: fullAddress,
           );
+
           try {
             await context.read<ClientProvider>().addClient(newClient);
           } catch (_) {
@@ -271,41 +271,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
- Widget _buildAdminHeader() {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
+  Widget _buildAdminHeader() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
 
-  if (uid == null) {
-    return const SizedBox.shrink();
-  }
+    if (uid == null) {
+      return const SizedBox.shrink();
+    }
 
-  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    future: FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get(),
-    builder: (context, snapshot) {
-      String fullName = 'Usuario sin nombre registrado';
-      String role = 'Administrador';
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+      builder: (context, snapshot) {
+        String fullName = 'Usuario sin nombre registrado';
+        String role = 'Administrador';
 
-      if (snapshot.hasData && snapshot.data!.exists) {
-        final data = snapshot.data!.data();
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data();
 
-        if (data != null) {
-  fullName =
-      (data['fullName']?.toString().trim().isNotEmpty ?? false)
-          ? data['fullName']
-          : 'Usuario sin nombre registrado';
+          if (data != null) {
+            fullName = (data['fullName']?.toString().trim().isNotEmpty ?? false)
+                ? data['fullName']
+                : 'Usuario sin nombre registrado';
 
-  role = data['rol'] ?? 'Administrador';
-}
-      }
+            role = data['rol'] ?? 'Administrador';
+          }
+        }
 
-      final initials = fullName
-          .split(' ')
-          .where((name) => name.isNotEmpty)
-          .take(2)
-          .map((name) => name[0].toUpperCase())
-          .join();
+        final initials = fullName
+            .split(' ')
+            .where((name) => name.isNotEmpty)
+            .take(2)
+            .map((name) => name[0].toUpperCase())
+            .join();
 
       return Container(
         color: Colors.white,
@@ -674,7 +670,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final orderProvider = context.watch<OrderProvider>();
       final vehicleProvider = context.watch<VehicleProvider>();
 
-      // Filtrar pedidos correspondientes al día de hoy (compatible con husos horarios)
+      // Filtrar pedidos correspondientes al día de hoy
       final today = DateTime.now();
       final todayOrders = orderProvider.orders.where((o) {
         final localDate = o.scheduledDate.toLocal();
@@ -683,7 +679,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             localDate.day == today.day;
       }).toList();
 
-      // Pedidos en ruta para el mapa (Flota en vivo)
+      // Pedidos en ruta para el mapa
       final enRutaOrders = todayOrders
           .where((o) => o.status == 'En camino' || o.status == 'En Ruta')
           .toList();
@@ -726,7 +722,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // Live OSM Map - Muestra exclusivamente camiones en ruta
+          // MAPA OSM
           Card(
             elevation: 0,
             clipBehavior: Clip.antiAlias,
@@ -755,10 +751,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         markers: enRutaOrders
                             .map(
                               (o) => Marker(
-                                point: const ll.LatLng(
-                                  -33.4489,
-                                  -70.6693,
-                                ), // Ubicación simulada en Santiago
+                                point: const ll.LatLng(-33.4489, -70.6693),
                                 child: const Icon(
                                   Icons.local_shipping,
                                   color: AppTheme.accentOrange,
@@ -776,7 +769,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 20),
           const Text(
-            'Despachos de Hoy',
+            'Estado de la Flota',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -784,7 +777,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          // Agrupar pedidos de hoy por vehículo (Hoja de Ruta del Conductor)
+          
           if (vehicleProvider.vehicles.isEmpty)
             const Center(
               child: Padding(
@@ -792,219 +785,127 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: Text('No hay vehículos registrados para monitorear.'),
               ),
             )
-          else if (todayOrders.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Text(
-                  'No se han generado despachos para el día de hoy.',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ),
-            )
           else
             ...vehicleProvider.vehicles.map((vehicle) {
-              final ordersForVehicle = todayOrders
+              // 1. Obtener todos los pedidos de hoy para este conductor
+              final driverOrders = todayOrders
                   .where((o) => o.driverId == vehicle.driverName)
                   .toList();
-              if (ordersForVehicle.isEmpty) return const SizedBox.shrink();
+
+              // 2. Determinar si está "En ruta" o "En reposo"
+              // Está en ruta si tiene al menos un pedido activo (Pendiente, En camino, Incidencia)
+              final hasActiveOrders = driverOrders.any((o) => 
+                o.status != 'Entregado' && o.status != 'Anulado'
+              );
+              final statusText = hasActiveOrders ? 'En ruta' : 'En reposo';
+              final statusColor = hasActiveOrders ? Colors.green[600] : Colors.grey[500];
+              final statusBgColor = hasActiveOrders ? Colors.green[50] : Colors.grey[100];
+
+              // 3. Determinar el último pedido atendido/actual
+              String lastOrderText = 'Ninguno';
+              if (driverOrders.isNotEmpty) {
+                // Buscamos primero si hay uno en camino
+                final enCamino = driverOrders.where((o) => o.status == 'En camino').toList();
+                if (enCamino.isNotEmpty) {
+                  lastOrderText = 'Pedido #${enCamino.first.id} (En curso)';
+                } else {
+                  // Si no hay en camino, buscamos el último entregado
+                  final entregados = driverOrders.where((o) => o.status == 'Entregado').toList();
+                  if (entregados.isNotEmpty) {
+                    entregados.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+                    lastOrderText = 'Pedido #${entregados.first.id} (Entregado)';
+                  } else {
+                    // Si solo tiene pendientes
+                    lastOrderText = 'Pedido #${driverOrders.first.id} (Próximo)';
+                  }
+                }
+              }
 
               return Card(
-                margin: const EdgeInsets.only(bottom: 20),
+                margin: const EdgeInsets.only(bottom: 12),
                 elevation: 0,
                 color: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(color: Colors.grey.shade200),
                 ),
-                child: Column(
-                  children: [
-                    // Cabecera azul de la Ruta del Vehículo
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryBlue,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      // Icono lateral que cambia de color
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: statusBgColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.local_shipping,
+                          color: statusColor,
+                          size: 28,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Ruta: R-${vehicle.id} (Centro)',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                      const SizedBox(width: 16),
+                      // Información del vehículo
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${vehicle.name} · ${vehicle.patente}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${vehicle.patente} • ${vehicle.driverName}',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Conductor: ${vehicle.driverName.isEmpty ? "Sin asignar" : vehicle.driverName}',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 13,
                               ),
-                            ],
-                          ),
-                          const CircleAvatar(
-                            backgroundColor: Colors.white24,
-                            child: Icon(
-                              Icons.local_shipping,
-                              color: Colors.white,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Lista de Pedidos
-                    Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        children: ordersForVehicle.map((order) {
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Colors.grey.shade100),
-                            ),
-                            child: ListTile(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        AdminOrderDetailScreen(order: order),
+                            const SizedBox(height: 8),
+                            // Indicadores
+                            Row(
+                              children: [
+                                // Badge de Estado
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusBgColor,
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                );
-                              },
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              title: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'PEDIDO #${order.id ?? "N/A"}',
+                                  child: Text(
+                                    statusText,
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                // Texto de último pedido
+                                Expanded(
+                                  child: Text(
+                                    'Último: $lastOrderText',
                                     style: const TextStyle(
                                       color: Colors.grey,
-                                      fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: order.status == 'Entregado'
-                                          ? const Color(0xFFE6F4EA)
-                                          : (order.status == 'Incidencia'
-                                                ? const Color(0xFFFCE8E6)
-                                                : (order.status ==
-                                                              'En camino' ||
-                                                          order.status ==
-                                                              'En Ruta'
-                                                      ? const Color(0xFFFFF4E5)
-                                                      : Colors.grey.shade100)),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      order.status == 'En camino' ||
-                                              order.status == 'En Ruta'
-                                          ? 'PRÓXIMO'
-                                          : order.status.toUpperCase(),
-                                      style: TextStyle(
-                                        color: order.status == 'Entregado'
-                                            ? const Color(0xFF137333)
-                                            : (order.status == 'Incidencia'
-                                                  ? const Color(0xFFC5221F)
-                                                  : (order.status ==
-                                                                'En camino' ||
-                                                            order.status ==
-                                                                'En Ruta'
-                                                        ? const Color(
-                                                            0xFFE65100,
-                                                          )
-                                                        : Colors
-                                                              .grey
-                                                              .shade700)),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Cliente: ${order.clientId}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on_outlined,
-                                        size: 16,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          order.address,
-                                          style: const TextStyle(
-                                            color: Colors.grey,
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.access_time_outlined,
-                                        size: 16,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        order.timeWindow,
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          );
-                        }).toList(),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             }),
@@ -1014,35 +915,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48),
-              const SizedBox(height: 16),
-              Text(
-                'Error al cargar el Monitor: $e',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                  fontSize: 16,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Text(
-                    stack.toString(),
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: Text('Error: $e\n$stack'),
         ),
       );
     }
@@ -1183,26 +1056,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     keyboardType: TextInputType.emailAddress,
                     readOnly: !_isManualClient,
                   ),
-                  if (_isManualClient) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _saveAsFrequent,
-                          onChanged: (v) {
-                            setState(() {
-                              _saveAsFrequent = v ?? false;
-                            });
-                          },
-                          activeColor: AppTheme.primaryBlue,
-                        ),
-                        const Text(
-                          'Guardar como cliente frecuente',
-                          style: TextStyle(fontSize: 13, color: Colors.black87),
-                        ),
-                      ],
-                    ),
-                  ],
+
                   const Divider(height: 24),
                   Row(
                     children: const [
@@ -1759,6 +1613,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           title: 'Gestión de Flota',
           subtitle: 'Monitorear, agregar y editar vehículos corporativos',
           onTap: () {
+            context
+                .read<VehicleProvider>()
+                .fetchVehicles(); //Llama a los camiones que estan guardados en Firestore
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FleetManagementScreen()),

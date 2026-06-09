@@ -24,7 +24,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: (db, version) async {
         print('DEBUG QUBICO: onCreate triggered for version $version');
         await _createDB(db, version);
@@ -47,6 +47,17 @@ class DatabaseService {
           );
           await _createDB(db, 5);
           print('DEBUG QUBICO: Recreated database successfully for v5.');
+        }
+        if (oldVersion < 7) {
+          await db.execute('''
+            ALTER TABLE orders
+            ADD COLUMN pending_sync INTEGER DEFAULT 0
+          ''');
+
+          await db.execute('''
+            ALTER TABLE orders
+            ADD COLUMN sync_attempts INTEGER DEFAULT 0
+          ''');
         }
       },
     );
@@ -102,6 +113,8 @@ class DatabaseService {
         signature_path TEXT,
         incident_reason TEXT,
         delivery_time TEXT,
+        pending_sync INTEGER DEFAULT 0,
+        sync_attempts INTEGER DEFAULT 0,
         FOREIGN KEY (client_id) REFERENCES clients (rut),
         FOREIGN KEY (driver_id) REFERENCES users (id)
       )
