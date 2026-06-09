@@ -50,6 +50,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         return Icons.person;
     }
   }
+
   // PESTAÑA 1: GESTIÓN DE CUENTAS (LISTADO)
   Widget _buildAccountsTab() {
     final userProvider = context.watch<UserProvider>();
@@ -275,6 +276,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: selectedRole,
+                      isExpanded: true, // 🎯 SOLUCIÓN: Expande el contenido interno para evitar desbordes visuales de texto
                       decoration: const InputDecoration(
                         labelText: 'Rol del Sistema',
                         prefixIcon: Icon(Icons.admin_panel_settings),
@@ -450,7 +452,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddUserDialog, // <── Aquí llama al método de arriba de forma limpia
+        onPressed: _showAddUserDialog,
         backgroundColor: AppTheme.accentOrange,
         icon: const Icon(Icons.person_add),
         label: const Text('Nuevo usuario'),
