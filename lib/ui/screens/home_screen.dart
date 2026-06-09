@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/client_model.dart';
 import '../../models/order_model.dart';
 import '../../models/vehicle_model.dart';
@@ -103,46 +104,90 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildConductorHeader() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
-            child: const Text(
-              'JP',
-              style: TextStyle(
-                color: AppTheme.accentOrange,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                '¡Buen viaje, Juan!',
-                style: TextStyle(
-                  fontSize: 18,
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+
+  if (uid == null) {
+    return const SizedBox.shrink();
+  }
+
+  return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    future: FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get(),
+    builder: (context, snapshot) {
+      String fullName = 'Usuario sin nombre registrado';
+      String role = 'Conductor';
+
+      if (snapshot.hasData && snapshot.data!.exists) {
+        final data = snapshot.data!.data();
+
+        if (data != null) {
+          fullName =
+              (data['fullName']?.toString().trim().isNotEmpty ?? false)
+                  ? data['fullName']
+                  : 'Usuario sin nombre registrado';
+
+          role = data['rol'] ?? 'Conductor';
+        }
+      }
+
+      final initials = fullName
+          .split(' ')
+          .where((name) => name.isNotEmpty)
+          .take(2)
+          .map((name) => name[0].toUpperCase())
+          .join();
+
+      final firstName = fullName.split(' ').first;
+
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
+              child: Text(
+                initials.isNotEmpty ? initials : 'U',
+                style: const TextStyle(
+                  color: AppTheme.accentOrange,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryBlue,
+                  fontSize: 20,
                 ),
               ),
-              SizedBox(height: 4),
-              Text(
-                'Conductor de Ruta',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '¡Buen viaje, $firstName!',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryBlue,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  role == 'conductor'
+                      ? 'Conductor de Ruta'
+                      : role,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   // ==================== TABS ====================
 

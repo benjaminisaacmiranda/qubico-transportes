@@ -17,54 +17,78 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _canLogin = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _emailController.addListener(_checkFields);
+    _passwordController.addListener(_checkFields);
+  }
+
+  void _checkFields() {
+    setState(() {
+      _canLogin =
+          _emailController.text.trim().isNotEmpty &&
+          _passwordController.text.trim().isNotEmpty;
+    });
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
 
-  try {
-    // 🔐 Login con Firebase Auth
-    final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    if (!mounted) return;
-
-    // 📦 Buscar datos en Firestore por UID
-    final uid = cred.user!.uid;
-
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .get();
-
-    if (!doc.exists) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario no existe en Firestore')),
+    try {
+      // 🔐 Login con Firebase Auth
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
-      return;
+
+      if (!mounted) return;
+
+      // 📦 Buscar datos en Firestore por UID
+      final uid = cred.user!.uid;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!doc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Usuario no existe en Firestore'),
+          ),
+        );
+        return;
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+      final rol = data['rol'];
+
+      // 🚀 Redirección por rol
+      if (rol == 'admin') {
+        context.go('/admin');
+      } else {
+        context.go('/home');
+      }
+    } on FirebaseAuthException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Usuario o contraseña incorrectos'),
+        ),
+      );
     }
-
-    final data = doc.data() as Map<String, dynamic>;
-    final rol = data['rol'];
-
-    // 🚀 Redirección por rol
-    if (rol == 'admin') {
-      context.go('/admin');
-    } else {
-      context.go('/home');
-    }
-
-  } on FirebaseAuthException {
-    // ❌ error login
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Usuario o contraseña incorrectos'),
-      ),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 48),
+
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -108,7 +133,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
+
               const SizedBox(height: 16),
+
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
@@ -129,15 +156,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 32),
+
               ElevatedButton(
-                onPressed: _login,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: AppTheme.primaryBlue,
-                ),
-                child: const Text('INGRESAR'),
-              ),
+  onPressed: _canLogin ? _login : null,
+  style: ElevatedButton.styleFrom(
+    minimumSize: const Size(double.infinity, 50),
+    backgroundColor: _canLogin
+        ? const Color.fromARGB(255, 2, 50, 97)
+        : Colors.grey.shade700,
+    foregroundColor: Colors.white,
+    disabledBackgroundColor: const Color.fromARGB(255, 70, 70, 71),
+    disabledForegroundColor: Colors.white70,
+    elevation: _canLogin ? 4 : 0,
+  ),
+  child: Text(
+    'INGRESAR',
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      color: _canLogin ? Colors.white : Colors.white70,
+    ),
+  ),
+),
             ],
           ),
         ),
