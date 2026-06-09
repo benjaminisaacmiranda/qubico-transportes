@@ -72,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
-          _buildConductorHeader(context),
+          _buildConductorHeader(),
           Expanded(
             child: IndexedStack(
               index: _currentIndex,
@@ -105,46 +105,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-<<<<<<< HEAD
-  Widget _buildConductorHeader(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      color: colorScheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: colorScheme.secondary.withOpacity(0.15),
-            child: Text(
-              'JP',
-              style: TextStyle(
-                color: colorScheme.secondary == Colors.black ? Colors.black : colorScheme.secondary,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '¡Buen viaje, Juan!',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface, // Cambia según contraste del tema
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Conductor de Ruta',
-                style: TextStyle(
-                  fontSize: 14, 
-                  color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
-                ),
-=======
   Widget _buildConductorHeader() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
@@ -214,7 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
->>>>>>> main
               ),
             ],
           ),
@@ -683,9 +642,6 @@ class _HomeScreenState extends State<HomeScreen> {
         try {
           client = clientProvider.clients.firstWhere((c) => c.rut == order.clientId);
         } catch (e) {
-<<<<<<< HEAD
-          client = Client(rut: order.clientId, name: 'Cliente Desconocido', phone: '', email: '', billingAddress: '');
-=======
           print("NO ENCONTRADO");
           client = Client(
             rut: order.clientId,
@@ -694,7 +650,6 @@ class _HomeScreenState extends State<HomeScreen> {
             email: '',
             billingAddress: '',
           );
->>>>>>> main
         }
 
         final isNext = index == nextOrderIndex;
