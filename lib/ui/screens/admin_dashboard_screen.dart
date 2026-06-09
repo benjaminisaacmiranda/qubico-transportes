@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../models/client_model.dart';
 import '../../models/order_model.dart';
@@ -199,15 +201,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             color: Colors.white,
           ),
         ),
-        actions: [
+          actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut(); // Destruye la sesión en Firebase
+              if (context.mounted) {
+                context.go('/login'); // Usa go_router para ir al login
+              }
             },
           ),
         ],
@@ -302,62 +303,58 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .map((name) => name[0].toUpperCase())
             .join();
 
-        return Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
-                child: Text(
-                  initials.isNotEmpty ? initials : 'U',
-                  style: const TextStyle(
-                    color: AppTheme.accentOrange,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
+              child: Text(
+                initials.isNotEmpty ? initials : 'U',
+                style: const TextStyle(
+                  color: AppTheme.accentOrange,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
                 ),
               ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    fullName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.black,
-                    ),
+            ),
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fullName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.black,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    role == 'admin' ? 'Administrador' : role,
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  role == 'admin' ? 'Administrador' : role,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
                   ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ================= TAB 1: INICIO =================
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+// ================= TAB 1: INICIO =================
   Widget _buildInicioTab() {
     final orderProvider = context.watch<OrderProvider>();
     final total = orderProvider.orders.length;
-    final enRuta = orderProvider.orders
-        .where((o) => o.status == 'En camino')
-        .length;
-    final entregados = orderProvider.orders
-        .where((o) => o.status == 'Entregado')
-        .length;
-    final incidencias = orderProvider.orders
-        .where((o) => o.status == 'Incidencia')
-        .length;
+    final enRuta = orderProvider.orders.where((o) => o.status == 'En camino' || o.status == 'En Ruta').length;
+    final entregados = orderProvider.orders.where((o) => o.status == 'Entregado').length;
+    final incidencias = orderProvider.orders.where((o) => o.status == 'Incidencia').length;
 
     final criticalOrders = orderProvider.orders.where((o) {
       if (o.status == 'Entregado' || o.status == 'Anulado') return false;
@@ -368,7 +365,61 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       padding: const EdgeInsets.all(20),
       children: [
         const Text(
-          'Resumen Hoy',
+          'Resumen de Operaciones',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 20),
+        
+        // 1. Tarjetas de KPI (Prioridad Visual)
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: 1.25,
+          children: [
+            _buildResumenCard(
+              icon: Icons.inventory_2_rounded,
+              label: 'Total Despachos',
+              value: total.toString(),
+              primaryColor: AppTheme.primaryBlue,
+              isAlert: false,
+            ),
+            _buildResumenCard(
+              icon: Icons.check_circle_rounded,
+              label: 'Entregas Exitosas',
+              value: entregados.toString(),
+              primaryColor: const Color(0xFF137333), // Verde Corporativo
+              isAlert: false,
+            ),
+            _buildResumenCard(
+              icon: Icons.local_shipping_rounded,
+              label: 'En Ruta',
+              value: enRuta.toString(),
+              primaryColor: AppTheme.accentOrange, // Naranja Activo
+              isAlert: false,
+            ),
+            _buildResumenCard(
+              icon: Icons.warning_rounded,
+              label: 'Incidencias',
+              value: incidencias.toString(),
+              primaryColor: AppTheme.errorColor, // Rojo Alerta
+              isAlert: incidencias > 0, // Destaca si hay problemas
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 32),
+
+        // 2. Gráfico de Distribución (fl_chart)
+        const Text(
+          'Distribución de Estados',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -376,125 +427,148 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.1,
-          children: [
-            _buildResumenCard(
-              icon: Icons.inventory_2_outlined,
-              label: 'Total',
-              value: total.toString(),
-              color: const Color(0xFF1967D2),
-              bgColor: const Color(0xFFE8F0FE),
-            ),
-            _buildResumenCard(
-              icon: Icons.access_time,
-              label: 'En Ruta',
-              value: enRuta.toString(),
-              color: const Color(0xFFE65100),
-              bgColor: const Color(0xFFFFF4E5),
-            ),
-            _buildResumenCard(
-              icon: Icons.check_circle_outline,
-              label: 'Entregados',
-              value: entregados.toString(),
-              color: const Color(0xFF137333),
-              bgColor: const Color(0xFFE6F4EA),
-            ),
-            _buildResumenCard(
-              icon: Icons.error_outline,
-              label: 'Incidencias',
-              value: incidencias.toString(),
-              color: const Color(0xFFC5221F),
-              bgColor: const Color(0xFFFCE8E6),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'Alertas de Operación',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 12),
         Card(
           elevation: 0,
           color: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.shade100),
+            side: BorderSide(color: Colors.grey.shade200),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: criticalOrders.isEmpty
-                ? Column(
+            padding: const EdgeInsets.all(20.0),
+            child: SizedBox(
+              height: 200,
+              child: total == 0 
+                ? const Center(child: Text('No hay datos para graficar', style: TextStyle(color: Colors.grey)))
+                : Row(
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: const Color(0xFFE6F4EA),
-                        child: Icon(Icons.check, color: Colors.green[700]),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Sin alertas críticas.',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: const [
-                          Icon(Icons.warning, color: AppTheme.errorColor),
-                          SizedBox(width: 8),
-                          Text(
-                            'Retraso Crítico (>15 min)',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.errorColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ...criticalOrders.map(
-                        (o) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6.0),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.arrow_right,
-                                color: AppTheme.errorColor,
-                                size: 20,
+                      Expanded(
+                        flex: 2,
+                        child: PieChart(
+                          PieChartData(
+                            sectionsSpace: 4,
+                            centerSpaceRadius: 40,
+                            sections: [
+                              PieChartSectionData(
+                                color: const Color(0xFF137333),
+                                value: entregados.toDouble(),
+                                title: '${((entregados / total) * 100).toStringAsFixed(0)}%',
+                                radius: 45,
+                                titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12),
                               ),
-                              Expanded(
-                                child: Text(
-                                  'Pedido #${o.id} - ${o.address}',
-                                  style: const TextStyle(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                              PieChartSectionData(
+                                color: AppTheme.accentOrange,
+                                value: enRuta.toDouble(),
+                                title: '${((enRuta / total) * 100).toStringAsFixed(0)}%',
+                                radius: 45,
+                                titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12),
+                              ),
+                              PieChartSectionData(
+                                color: AppTheme.errorColor,
+                                value: incidencias.toDouble(),
+                                title: '${((incidencias / total) * 100).toStringAsFixed(0)}%',
+                                radius: 45,
+                                titleStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12),
                               ),
                             ],
                           ),
                         ),
                       ),
+                      // Leyenda del gráfico
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLegendItem('Entregados', const Color(0xFF137333)),
+                            const SizedBox(height: 8),
+                            _buildLegendItem('En Ruta', AppTheme.accentOrange),
+                            const SizedBox(height: 8),
+                            _buildLegendItem('Incidencia', AppTheme.errorColor),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
+            ),
           ),
         ),
+
+        const SizedBox(height: 32),
+
+        // 3. Alertas Críticas de Operación
+        Row(
+          children: [
+            const Icon(Icons.notifications_active_outlined, color: Colors.black87),
+            const SizedBox(width: 8),
+            const Text(
+              'Alertas Críticas',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const Spacer(),
+            if (criticalOrders.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.errorColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${criticalOrders.length} Atrasos',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              )
+          ],
+        ),
+        const SizedBox(height: 16),
+        
+        criticalOrders.isEmpty
+            ? Card(
+                elevation: 0,
+                color: const Color(0xFFE6F4EA),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: const Padding(
+                  padding: EdgeInsets.all(24.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: Color(0xFF137333)),
+                      SizedBox(width: 12),
+                      Text(
+                        'Sin retrasos críticos.',
+                        style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF137333)),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : Column(
+                children: criticalOrders.map((o) => Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: AppTheme.errorColor, width: 1.5),
+                  ),
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFFCE8E6),
+                      child: Icon(Icons.timer_off, color: AppTheme.errorColor),
+                    ),
+                    title: Text(
+                      'Pedido #${o.id}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.errorColor),
+                    ),
+                    subtitle: Text('${o.address}\nExcedió ventana: ${o.timeWindow}'),
+                    isThreeLine: true,
+                  ),
+                )).toList(),
+              ),
       ],
     );
   }
@@ -503,45 +577,90 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required IconData icon,
     required String label,
     required String value,
-    required Color color,
-    required Color bgColor,
+    required Color primaryColor,
+    required bool isAlert,
   }) {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade100),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: bgColor,
-              child: Icon(icon, color: color, size: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: isAlert ? AppTheme.errorColor : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isAlert ? AppTheme.errorColor : Colors.grey.shade200,
+          width: 1.5,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isAlert ? Colors.white.withOpacity(0.2) : primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isAlert ? Colors.white : primaryColor,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: isAlert ? Colors.white : Colors.black87,
+                  height: 1.2,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: isAlert ? Colors.white70 : Colors.grey.shade600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black87),
+        ),
+      ],
     );
   }
 

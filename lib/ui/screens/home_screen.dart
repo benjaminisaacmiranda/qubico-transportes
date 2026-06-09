@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../models/client_model.dart';
 import '../../models/order_model.dart';
 import '../../models/vehicle_model.dart';
@@ -57,15 +59,14 @@ class _HomeScreenState extends State<HomeScreen> {
             color: colorScheme.onPrimary,
           ),
         ),
-        actions: [
+          actions: [
           IconButton(
-            icon: Icon(Icons.logout, color: colorScheme.onPrimary),
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                context.go('/login');
+              }
             },
           ),
         ],
@@ -490,12 +491,11 @@ class _HomeScreenState extends State<HomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
+                  onPressed: () async { // <-- Agrega async
+                    await FirebaseAuth.instance.signOut(); // <-- Agrega esto
+                    if (context.mounted) {
+                      context.go('/login'); // <-- Cambia el Navigator por esto
+                    }
                   },
                   icon: const Icon(Icons.logout, color: Colors.white),
                   label: const Text(
@@ -554,14 +554,12 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Agrandamos el área táctil del texto de cierre a un botón accesible
-              InkWell(
-                onTap: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
-                  );
+              GestureDetector(
+                onTap: () async { // <-- Agrega async
+                  await FirebaseAuth.instance.signOut(); // <-- Agrega esto
+                  if (context.mounted) {
+                    context.go('/login'); // <-- Cambia el Navigator por esto
+                  }
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
