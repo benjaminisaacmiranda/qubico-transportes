@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import 'package:flutter/services.dart';
 import '../../models/user_model.dart' as app_models;
 import '../../providers/user_provider.dart';
 import '../../services/database_service.dart';
@@ -203,6 +203,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController();
     final emailController = TextEditingController();
+    final phoneController = TextEditingController();
     final passwordController = TextEditingController();
     final rutController = TextEditingController();
     String selectedRole = 'conductor';
@@ -244,24 +245,152 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: rutController,
+                      keyboardType: TextInputType.text,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9kK]')),
+                        LengthLimitingTextInputFormatter(9),
+                      ],
+                      onChanged: (value) {
+                        final limpio = value.replaceAll('-', '');
+
+                        if (limpio.length >= 2) {
+                          final nuevo =
+                              '${limpio.substring(0, limpio.length - 1)}-${limpio.substring(limpio.length - 1)}';
+
+                          if (nuevo != rutController.text) {
+                            rutController.value = TextEditingValue(
+                              text: nuevo,
+                              selection: TextSelection.collapsed(
+                                offset: nuevo.length,
+                              ),
+                            );
+                          }
+                        }
+                      },
                       decoration: const InputDecoration(
                         labelText: 'RUT',
-                        prefixIcon: Icon(Icons.badge),
-                        hintText: '12.345.678-9',
+                        hintText: '12345678-5',
+                        prefixIcon: Icon(Icons.badge_outlined),
                       ),
-                      validator: Validators.validateRut,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingrese un RUT';
+                        }
+
+                        final rut = value.trim().toUpperCase();
+
+                        if (!rut.contains('-')) {
+                          return 'El RUT debe incluir guion';
+                        }
+
+                        final partes = rut.split('-');
+
+                        if (partes.length != 2) {
+                          return 'Formato inválido';
+                        }
+
+                        final cuerpo = partes[0];
+                        final dvIngresado = partes[1];
+
+                        if (cuerpo.length < 7 || cuerpo.length > 8) {
+                          return 'RUT inválido';
+                        }
+
+                        int suma = 0;
+                        int multiplicador = 2;
+
+                        for (int i = cuerpo.length - 1; i >= 0; i--) {
+                          suma += int.parse(cuerpo[i]) * multiplicador;
+                          multiplicador = multiplicador == 7
+                              ? 2
+                              : multiplicador + 1;
+                        }
+
+                        final resto = 11 - (suma % 11);
+
+                        String dvCorrecto;
+
+                        if (resto == 11) {
+                          dvCorrecto = '0';
+                        } else if (resto == 10) {
+                          dvCorrecto = 'K';
+                        } else {
+                          dvCorrecto = resto.toString();
+                        }
+
+                        if (dvIngresado != dvCorrecto) {
+                          return 'RUT no válido';
+                        }
+
+                        return null;
+                      },
                     ),
-                    const SizedBox(height: 12),
+                    // Nombre completo
+                    TextFormField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nombre completo',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      validator: (v) =>
+                          Validators.validateRequired(v, 'El nombre'),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Correo
                     TextFormField(
                       controller: emailController,
                       decoration: const InputDecoration(
                         labelText: 'Correo Electrónico',
                         prefixIcon: Icon(Icons.email),
                       ),
-                      keyboardType: TextInputType.emailAddress,
-                      validator: Validators.validateEmail,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingrese un correo valido';
+                        }
+
+                        final regex = RegExp(
+                          r'^[\w\.-]+@[\w\.-]+\.[a-zA-Z]{2,}$',
+                        );
+
+                        if (!regex.hasMatch(value.trim())) {
+                          return 'Correo inválido';
+                        }
+
+                        return null;
+                      },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
+
+                    TextFormField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(9),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'Teléfono celular',
+                        hintText: '912345678',
+                        prefixIcon: Icon(Icons.phone_outlined),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Ingrese un teléfono';
+                        }
+
+                        if (v.length != 9) {
+                          return 'Debe tener 9 dígitos';
+                        }
+
+                        if (!v.startsWith('9')) {
+                          return 'Debe comenzar con 9';
+                        }
+
+                        return null;
+                      },
+                    ),
+                    // Contraseña
                     TextFormField(
                       controller: passwordController,
                       decoration: const InputDecoration(
@@ -347,6 +476,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                               'correo': emailController.text.trim(),
                               'fullName': nameController.text.trim(),
                               'rut': rutController.text.trim(),
+                              'telefono': phoneController.text.trim(),
                               'rol': selectedRole,
                               'isActive': true,
                             });

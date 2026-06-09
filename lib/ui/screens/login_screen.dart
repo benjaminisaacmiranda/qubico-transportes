@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart'; 
 
-import '../../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+
+import '../../providers/client_provider.dart';
+import '../../providers/order_provider.dart';
+import '../../providers/vehicle_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,25 +22,37 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _isButtonLoading = false;
+  bool _canLogin = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _emailController.addListener(_checkFields);
+    _passwordController.addListener(_checkFields);
+  }
+
+  void _checkFields() {
+    setState(() {
+      _canLogin =
+          _emailController.text.trim().isNotEmpty &&
+          _passwordController.text.trim().isNotEmpty;
+    });
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, rellene todos los campos')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isButtonLoading = true;
-    });
-
     try {
-      // 1️⃣ 🔐 Login con Firebase Auth (Nube)
+      // 🔐 Login con Firebase Auth
       final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -45,55 +60,39 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // 2️⃣ 🔄 Sincronizar con el AuthProvider local (SQLite)
-      final authProvider = context.read<AuthProvider>();
-      
-      // 🎯 LE PASAMOS 'isFirebaseVerified: true' PORQUE FIREBASE YA DIJO QUE LA CONTRASEÑA ES VÁLIDA
-      final localLoginSuccess = await authProvider.login(email, password, isFirebaseVerified: true);
+      // 📦 Buscar datos en Firestore por UID
+      final uid = cred.user!.uid;
 
-      if (!localLoginSuccess) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authProvider.errorMessage ?? 'Error de autenticación local'),
-            ),
-          );
-        }
-        await FirebaseAuth.instance.signOut(); 
-        setState(() {
-          _isButtonLoading = false;
-        });
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      if (!doc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario no existe en Firestore')),
+        );
         return;
       }
 
-      if (!mounted) return;
+      final data = doc.data() as Map<String, dynamic>;
+      final rol = data['rol'];
 
-      // 3️⃣ 🚀 Redirección por Rol
-      final rol = authProvider.currentUserRole;
+      // Cargar datos locales
+      await context.read<ClientProvider>().fetchClients();
+      await context.read<OrderProvider>().fetchOrders();
+      await context.read<VehicleProvider>().fetchVehicles();
+
+      // 🚀 Redirección por rol
       if (rol == 'admin') {
         context.go('/admin');
       } else {
         context.go('/home');
       }
-
     } on FirebaseAuthException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Usuario o contraseña incorrectos')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error inesperado: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isButtonLoading = false;
-        });
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario o contraseña incorrectos')),
+      );
     }
   }
 
@@ -132,6 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 48),
+
               TextField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -139,7 +139,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
+
               const SizedBox(height: 16),
+
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
@@ -160,23 +162,33 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 32),
+
               ElevatedButton(
-                onPressed: _isButtonLoading ? null : _login,
+                onPressed: _canLogin ? _login : null,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  backgroundColor: AppTheme.primaryBlue,
+                  backgroundColor: _canLogin
+                      ? const Color.fromARGB(255, 2, 50, 97)
+                      : Colors.grey.shade700,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color.fromARGB(
+                    255,
+                    70,
+                    70,
+                    71,
+                  ),
+                  disabledForegroundColor: Colors.white70,
+                  elevation: _canLogin ? 4 : 0,
                 ),
-                child: _isButtonLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('INGRESAR', style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'INGRESAR',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _canLogin ? Colors.white : Colors.white70,
+                  ),
+                ),
               ),
             ],
           ),
