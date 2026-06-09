@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../../models/user_model.dart' as app_models;
 import '../../providers/user_provider.dart';
+import '../../services/database_service.dart';
 import '../../utils/validators.dart';
 import '../theme/app_theme.dart';
 
@@ -23,6 +25,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Carga automática de los usuarios locales al abrir la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<UserProvider>().fetchUsers();
+    });
   }
 
   @override
@@ -31,9 +38,8 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     super.dispose();
   }
 
-  // ── helpers ──────────────────────────────────────────────
-
-  /// Icono por rol
+  // ── Helpers de Interfaz ─────────────────────────────────
+  /// Retorna un icono representativo dependiendo del rol del usuario
   IconData _roleIcon(String rol) {
     switch (rol) {
       case 'conductor':
@@ -45,113 +51,145 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     }
   }
 
-  /// Color de badge por rol
-  Color _roleColor(String rol) {
-    switch (rol) {
-      case 'conductor':
-        return AppTheme.accentOrange;
-      case 'admin':
-        return AppTheme.primaryBlue;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  /// Label legible por rol
-  String _roleLabel(String rol) {
-    switch (rol) {
-      case 'conductor':
-        return 'Conductor';
-      case 'admin':
-        return 'Administrador';
-      default:
-        return 'Usuario';
-    }
-  }
-
-  // ══════════════════════════════════════════════════════
-  // TAB 1 – Gestión de Cuentas
-  // ══════════════════════════════════════════════════════
+  // PESTAÑA 1: GESTIÓN DE CUENTAS (LISTADO)
   Widget _buildAccountsTab() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    final userProvider = context.watch<UserProvider>();
 
-        final users = snapshot.data!.docs;
+    if (userProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-        if (users.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+    if (userProvider.users.isEmpty) {
+      return const Center(
+        child: Text('No hay usuarios registrados en el sistema local.'),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: userProvider.users.length,
+      itemBuilder: (context, index) {
+        final user = userProvider.users[index];
+        final roleStr = user.role.toString().split('.').last;
+
+        return Card(
+          elevation: 0,
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: AppTheme.primaryBlue.withOpacity(0.08),
+              child: Icon(_roleIcon(roleStr), color: AppTheme.primaryBlue),
+            ),
+            title: Text(
+              user.fullName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text('${user.email}\nRol: ${roleStr.toUpperCase()}'),
+            ),
+            isThreeLine: true,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.group_off, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  'No hay usuarios registrados',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                // Switch para habilitar o deshabilitar acceso del usuario
+                Switch(
+                  value: user.isActive,
+                  activeColor: AppTheme.primaryBlue,
+                  onChanged: (value) async {
+                    await context.read<UserProvider>().toggleUserStatus(user.id, user.isActive);
+                  },
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Presiona + para agregar el primero',
-                  style: TextStyle(color: Colors.grey),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Eliminar Usuario'),
+                        content: Text('¿Está seguro de que desea eliminar a ${user.fullName}?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('CANCELAR'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('ELIMINAR', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await context.read<UserProvider>().deleteUser(user.id);
+                    }
+                  },
                 ),
               ],
             ),
-          );
+          ),
+        );
+      },
+    );
+  }
+
+  // PESTAÑA 2: BITÁCORA DE AUDITORÍA
+  Widget _buildAuditTab() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: DatabaseService.instance.queryAll('audit_logs'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error al cargar la bitácora: ${snapshot.error}'));
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: users.length,
-          itemBuilder: (context, index) {
-            final data = users[index].data() as Map<String, dynamic>;
-            final rol = data['rol'] as String? ?? 'usuario';
+        final logs = snapshot.data ?? [];
+        if (logs.isEmpty) {
+          return const Center(child: Text('No hay registros en la bitácora de auditoría.'));
+        }
 
+        final reversedLogs = logs.reversed.toList();
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: reversedLogs.length,
+          itemBuilder: (context, index) {
+            final log = reversedLogs[index];
             return Card(
+              elevation: 0,
               margin: const EdgeInsets.only(bottom: 8),
-              elevation: 1,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-                side: BorderSide(color: Colors.grey[200]!, width: 1),
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: Colors.grey.shade100),
               ),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: _roleColor(rol).withOpacity(0.15),
-                  child: Icon(_roleIcon(rol), color: _roleColor(rol), size: 22),
-                ),
+                leading: Icon(Icons.history_toggle_off, color: Colors.grey.shade600),
                 title: Text(
-                  data['fullName'] ?? 'Sin nombre',
+                  log['action'] ?? 'Acción no especificada',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: Text(
-                  data['correo'] ?? '',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _roleColor(rol).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
                   child: Text(
-                    _roleLabel(rol),
-                    style: TextStyle(
-                      color: _roleColor(rol),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
+                    'Usuario ID: ${log['user_id']}\nCambio: ${log['old_value']} ➔ ${log['new_value']}',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
                   ),
                 ),
+                trailing: Text(
+                  log['timestamp'] != null
+                      ? log['timestamp'].toString().substring(0, 16).replaceAll('T', ' ')
+                      : '',
+                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                ),
+                isThreeLine: true,
               ),
             );
           },
@@ -160,63 +198,37 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // TAB 2 – Bitácora de Auditoría
-  // ══════════════════════════════════════════════════════
-  Widget _buildAuditTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: ListTile(
-            leading: Icon(Icons.history, color: AppTheme.primaryBlue),
-            title: const Text('Auditoría del Sistema'),
-            subtitle: const Text(
-              'Sistema de auditoría activo (pendiente integración real)',
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ══════════════════════════════════════════════════════
-  // DIÁLOGO CREAR USUARIO
-  // ══════════════════════════════════════════════════════
+  // DIÁLOGO PRINCIPAL: FORMULARIO Y CREACIÓN DE USUARIOS
   void _showAddUserDialog() {
     final formKey = GlobalKey<FormState>();
-    final rutController = TextEditingController();
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
     final passwordController = TextEditingController();
-    bool obscurePass = true;
-    bool isSaving = false;
-
-    // ⚠️ 'conductor' incluido para que aparezca en Gestión de Flota
+    final rutController = TextEditingController();
     String selectedRole = 'conductor';
+    bool isSaving = false;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.person_add, color: AppTheme.primaryBlue, size: 22),
+              Icon(Icons.person_add_alt_1, color: AppTheme.primaryBlue),
               const SizedBox(width: 8),
-              const Text('Nuevo Usuario'),
+              const Text('Crear Nuevo Perfil'),
             ],
           ),
-          content: Form(
-            key: formKey,
-            child: SizedBox(
-              width: 360,
-              child: SingleChildScrollView(
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // RUT
                     TextFormField(
                       controller: rutController,
                       keyboardType: TextInputType.text,
@@ -314,10 +326,9 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                     // Correo
                     TextFormField(
                       controller: emailController,
-                      keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        labelText: 'Correo electrónico',
-                        prefixIcon: Icon(Icons.email_outlined),
+                        labelText: 'Correo Electrónico',
+                        prefixIcon: Icon(Icons.email),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -368,110 +379,43 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                     // Contraseña
                     TextFormField(
                       controller: passwordController,
-                      obscureText: obscurePass,
-                      decoration: InputDecoration(
-                        labelText: 'Contraseña',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscurePass
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                          ),
-                          onPressed: () =>
-                              setDialogState(() => obscurePass = !obscurePass),
-                        ),
+                      decoration: const InputDecoration(
+                        labelText: 'Contraseña Inicial',
+                        prefixIcon: Icon(Icons.lock),
                       ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Requerido';
-                        if (v.length < 8) return 'Mínimo 8 caracteres';
-                        return null;
-                      },
+                      obscureText: true,
+                      validator: (v) => v == null || v.length < 6
+                          ? 'Mínimo 6 caracteres'
+                          : null,
                     ),
-                    const SizedBox(height: 10),
-
-                    // ── ROL ──────────────────────────────────────
-                    // Incluye 'conductor' para que quede disponible
-                    // en el dropdown de Gestión de Flota
+                    const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: selectedRole,
+                      isExpanded: true, // 🎯 SOLUCIÓN: Expande el contenido interno para evitar desbordes visuales de texto
                       decoration: const InputDecoration(
-                        labelText: 'Rol',
-                        prefixIcon: Icon(Icons.manage_accounts_outlined),
+                        labelText: 'Rol del Sistema',
+                        prefixIcon: Icon(Icons.admin_panel_settings),
                       ),
                       items: const [
                         DropdownMenuItem(
                           value: 'conductor',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.drive_eta,
-                                size: 18,
-                                color: AppTheme.accentOrange,
-                              ),
-                              SizedBox(width: 8),
-                              Text('CONDUCTOR'),
-                            ],
-                          ),
+                          child: Text('Conductor / Transportista'),
                         ),
                         DropdownMenuItem(
                           value: 'admin',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.admin_panel_settings,
-                                size: 18,
-                                color: AppTheme.primaryBlue,
-                              ),
-                              SizedBox(width: 8),
-                              Text('ADMINISTRADOR'),
-                            ],
-                          ),
+                          child: Text('Administrador de Operaciones'),
                         ),
                         DropdownMenuItem(
-                          value: 'usuario',
-                          child: Row(
-                            children: [
-                              Icon(Icons.person, size: 18, color: Colors.grey),
-                              SizedBox(width: 8),
-                              Text('USUARIO'),
-                            ],
-                          ),
+                          value: 'staff',
+                          child: Text('Personal de Soporte'),
                         ),
                       ],
-                      onChanged: (v) => setDialogState(() => selectedRole = v!),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() => selectedRole = val);
+                        }
+                      },
                     ),
-
-                    // Aviso informativo para el rol conductor
-                    if (selectedRole == 'conductor') ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppTheme.accentOrange.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 16,
-                              color: AppTheme.accentOrange,
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Este conductor podrá ser asignado en Gestión de Flota.',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -482,18 +426,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
               onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
               child: const Text('CANCELAR'),
             ),
-            ElevatedButton.icon(
-              icon: isSaving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.save, size: 18),
-              label: Text(isSaving ? 'Guardando…' : 'GUARDAR'),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+              ),
               onPressed: isSaving
                   ? null
                   : () async {
@@ -501,15 +437,24 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       setDialogState(() => isSaving = true);
 
                       try {
-                        // 1️⃣  Crear en Firebase Auth
-                        final cred = await FirebaseAuth.instance
-                            .createUserWithEmailAndPassword(
-                              email: emailController.text.trim(),
-                              password: passwordController.text.trim(),
-                            );
+                        // 1️⃣ 🔐 Crear en Firebase Auth usando una App Secundaria Temporal sin desloguear al Admin
+                        FirebaseApp secondaryApp = await Firebase.initializeApp(
+                          name: 'SecondaryApp',
+                          options: Firebase.app().options,
+                        );
+                        
+                        FirebaseAuth secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+                        
+                        final cred = await secondaryAuth.createUserWithEmailAndPassword(
+                          email: emailController.text.trim(),
+                          password: passwordController.text.trim(),
+                        );
                         final uid = cred.user!.uid;
+                        
+                        // Liberar inmediatamente la app secundaria de la memoria
+                        await secondaryApp.delete();
 
-                        // 2️⃣  Guardar en Firestore
+                        // Registrar datos ampliados en Firestore (Nube)
                         await FirebaseFirestore.instance
                             .collection('users')
                             .doc(uid)
@@ -522,9 +467,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                               'isActive': true,
                             });
 
-                        // 3️⃣  Guardar también en SQLite local
-                        //     para que Gestión de Flota pueda leer
-                        //     conductores desde UserProvider
+                        // 3️⃣ 💾 Sincronizar y persistir localmente en SQLite mediante el UserProvider
                         final appRole = app_models.UserRole.values.firstWhere(
                           (e) => e.toString().split('.').last == selectedRole,
                           orElse: () => app_models.UserRole.staff,
@@ -551,15 +494,12 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                             SnackBar(
                               content: Row(
                                 children: [
-                                  const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.white,
-                                  ),
+                                  const Icon(Icons.check_circle, color: Colors.white),
                                   const SizedBox(width: 8),
                                   Text(
                                     selectedRole == 'conductor'
-                                        ? 'Conductor creado. Ya aparece en Gestión de Flota.'
-                                        : 'Usuario creado exitosamente.',
+                                        ? 'Conductor guardado correctamente.'
+                                        : 'Usuario guardado exitosamente.',
                                   ),
                                 ],
                               ),
@@ -572,7 +512,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(e.message ?? 'Error de Firebase'),
+                              content: Text(e.message ?? 'Error de autenticación con Firebase'),
                               backgroundColor: Colors.red[700],
                             ),
                           );
@@ -589,6 +529,16 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                         }
                       }
                     },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('GUARDAR', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -596,9 +546,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // BUILD
-  // ══════════════════════════════════════════════════════
+  // MÉTODO BUILD PRINCIPAL 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -614,7 +562,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildAccountsTab(), _buildAuditTab()],
+        children: [
+          _buildAccountsTab(),
+          _buildAuditTab(),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddUserDialog,
