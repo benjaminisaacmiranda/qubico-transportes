@@ -65,7 +65,6 @@ class OrderProvider with ChangeNotifier {
 
     try {
       final data = await DatabaseService.instance.queryAll('orders');
-
       _orders = data.map((e) => Order.fromMap(e)).toList();
     } catch (e) {
       debugPrint(

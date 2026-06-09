@@ -213,7 +213,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     } catch (e) {
       client = Client(
         rut: widget.order.clientId,
-        name: 'Cliente Desconocido',
+        name: 'Cliente Desconocido ORDER DETAIL SCREEN',
         phone: '',
         email: '',
         billingAddress: '',
