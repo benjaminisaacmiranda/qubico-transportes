@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _login() async {
+Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -67,6 +67,9 @@ class _LoginScreenState extends State<LoginScreen> {
           .collection('users')
           .doc(uid)
           .get();
+
+      // FIX: Validar que el widget siga vivo después del await a Firestore
+      if (!mounted) return;
 
       if (!doc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -90,6 +93,8 @@ class _LoginScreenState extends State<LoginScreen> {
         context.go('/home');
       }
     } on FirebaseAuthException {
+      // 🛑 OTRA PRECAUCIÓN: Validar mounted aquí también por si acaso
+      if (!mounted) return; 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Usuario o contraseña incorrectos')),
       );
