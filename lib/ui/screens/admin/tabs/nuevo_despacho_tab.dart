@@ -38,7 +38,10 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
   final _widthController = TextEditingController();
   final _heightController = TextEditingController();
 
-  String? _selectedClientOption = 'manual';
+  // FIX: Usamos el objeto Client directamente en lugar del RUT como key,
+  // evitando cualquier re-búsqueda que dependa de rut como identificador.
+  // null = modo manual; objeto Client = cliente seleccionado del listado.
+  Client? _selectedClient;
   bool _isManualClient = true;
   
   // 🕒 Bandera para controlar la pantalla de carga
@@ -97,7 +100,7 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
   void loadOrderForEdit(Order order) {
     setState(() {
-      _selectedClientOption = 'manual';
+      _selectedClient = null;
       _isManualClient = true;
       _rutController.text = order.clientId;
       _clientNameController.text = '';
@@ -131,7 +134,7 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
   void _resetForm() {
     setState(() {
-      _selectedClientOption = 'manual';
+      _selectedClient = null;
       _isManualClient = true;
       _selectedVehicle = null;
       _rutController.clear();
@@ -194,6 +197,11 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
           try {
             await context.read<ClientProvider>().addClient(newClient);
+            // FIX: Re-fetch para asegurar que el cliente recién guardado
+            // pase por fromMap() (con decrypt) antes de aparecer en el dropdown.
+            // Evita mostrar RUT/teléfono encriptados al seleccionar el cliente
+            // inmediatamente después de crearlo en la misma sesión.
+            await context.read<ClientProvider>().fetchClients();
           } catch (_) {}
         }
       }
@@ -316,42 +324,67 @@ Widget build(BuildContext context) {
                     ],
                   ),
                   const Divider(height: 24),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedClientOption,
+                  // FIX: Dropdown tipado como Client? para trabajar directamente
+                  // con el objeto en memoria — sin re-búsqueda por rut.
+                  DropdownButtonFormField<Client>(
                     isExpanded: true,
+                    value: _selectedClient,
                     items: [
-                      const DropdownMenuItem<String>(
-                        value: 'manual',
+                      const DropdownMenuItem<Client>(
+                        value: null,
                         child: Text(
                           'Ingresar nuevo cliente manualmente',
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       ...clients.map(
-                        (c) => DropdownMenuItem<String>(
-                          value: c.rut,
+                        (c) => DropdownMenuItem<Client>(
+                          value: c,
                           child: Text(c.name, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                     ],
-                    onChanged: (v) {
+                    onChanged: (Client? selected) {
                       setState(() {
-                        _selectedClientOption = v;
-                        if (v == 'manual' || v == null) {
+                        _selectedClient = selected;
+                        if (selected == null) {
                           _isManualClient = true;
                           _clientNameController.clear();
                           _rutController.clear();
                           _phoneController.clear();
                           _emailController.clear();
+                          _calleController.clear();
+                          _numeroController.clear();
+                          _comunaController.clear();
                         } else {
                           _isManualClient = false;
-                          final selected = clients.firstWhere(
-                            (c) => c.rut == v,
-                          );
+                          // Datos directamente del objeto en memoria (ya desencriptados por fromMap)
                           _clientNameController.text = selected.name;
                           _rutController.text = selected.rut;
                           _phoneController.text = selected.phone;
                           _emailController.text = selected.email;
+
+                          // Autocompletar dirección desde billingAddress
+                          final address = selected.billingAddress.trim();
+                          if (address.isNotEmpty) {
+                            final commaIdx = address.lastIndexOf(',');
+                            if (commaIdx != -1) {
+                              final streetPart = address.substring(0, commaIdx).trim();
+                              _comunaController.text = address.substring(commaIdx + 1).trim();
+                              final lastSpaceIdx = streetPart.lastIndexOf(' ');
+                              if (lastSpaceIdx != -1) {
+                                _calleController.text = streetPart.substring(0, lastSpaceIdx).trim();
+                                _numeroController.text = streetPart.substring(lastSpaceIdx + 1).trim();
+                              } else {
+                                _calleController.text = streetPart;
+                                _numeroController.clear();
+                              }
+                            } else {
+                              _calleController.text = address;
+                              _numeroController.clear();
+                              _comunaController.clear();
+                            }
+                          }
                         }
                       });
                     },
@@ -420,6 +453,7 @@ Widget build(BuildContext context) {
                       labelText: 'Calle *',
                       hintText: 'Ej: Av. Providencia',
                     ),
+                    readOnly: !_isManualClient,
                     validator: (v) =>
                         Validators.validateRequired(v, 'La calle'),
                   ),
@@ -430,6 +464,7 @@ Widget build(BuildContext context) {
                       labelText: 'Número *',
                       hintText: 'Ej: 1234 o 56-A',
                     ),
+                    readOnly: !_isManualClient,
                     validator: (v) =>
                         Validators.validateRequired(v, 'El número'),
                   ),
@@ -440,6 +475,7 @@ Widget build(BuildContext context) {
                       labelText: 'Comuna *',
                       hintText: 'Ej: Providencia',
                     ),
+                    readOnly: !_isManualClient,
                     validator: (v) =>
                         Validators.validateRequired(v, 'La comuna'),
                   ),
