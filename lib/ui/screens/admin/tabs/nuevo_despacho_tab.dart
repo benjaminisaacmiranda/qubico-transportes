@@ -40,11 +40,43 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
   String? _selectedClientOption = 'manual';
   bool _isManualClient = true;
+  
+  // 🕒 Bandera para controlar la pantalla de carga
+  bool _isLoading = true;
 
   Vehicle? _selectedVehicle;
   String _selectedWindow = '08:00 - 10:00';
   String _selectedLoad = 'Paquetería';
   Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🛑 HOTFIX: Esperar a que el frame termine de construirse antes de llamar al Provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchRequiredData();
+    });
+  }
+
+  // 🚀 Método que dispara todas las consultas a Firebase
+  Future<void> _fetchRequiredData() async {
+    try {
+      // Usamos Future.wait para ejecutar todas las consultas en paralelo y ganar velocidad
+      await Future.wait([
+        context.read<ClientProvider>().fetchClients(),
+        context.read<UserProvider>().fetchUsers(),
+        context.read<VehicleProvider>().fetchVehicles(),
+      ]);
+    } catch (e) {
+      // Manejo silencioso de errores o puedes agregar un log aquí
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false; // Apagamos el ícono de carga
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -63,7 +95,6 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
     super.dispose();
   }
 
-  // Método público para ser llamado mediante GlobalKey cuando se requiere editar
   void loadOrderForEdit(Order order) {
     setState(() {
       _selectedClientOption = 'manual';
@@ -95,7 +126,6 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
       _heightController.text = order.height.toString();
       _selectedWindow = order.timeWindow;
       _selectedLoad = order.loadType;
-      // Vehiculo y otras validaciones podrian setearse acá
     });
   }
 
@@ -164,9 +194,7 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
           try {
             await context.read<ClientProvider>().addClient(newClient);
-          } catch (_) {
-             // Ignorar si ya existe
-          }
+          } catch (_) {}
         }
       }
 
@@ -195,24 +223,58 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
           ),
         );
         _resetForm();
-        widget.onOrderSaved(); // Navegamos de vuelta
+        widget.onOrderSaved(); 
       }
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: AppTheme.accentOrange),
+            SizedBox(height: 16),
+            Text(
+              'Cargando flota y clientes...',
+              style: TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final clients = context.watch<ClientProvider>().clients;
     final users = context.watch<UserProvider>().users;
+
+    // BUGFIX 1: Filtro a prueba de errores humanos (ignora espacios extra y mayúsculas)
     final activeDriverNames = users
         .where((u) => u.isActive)
-        .map((u) => u.fullName)
+        .map((u) => u.fullName.trim().toLowerCase())
         .toSet();
+
     final vehicles = context
         .watch<VehicleProvider>()
         .vehicles
-        .where((v) => activeDriverNames.contains(v.driverName))
+        .where((v) => activeDriverNames.contains(v.driverName.trim().toLowerCase()))
         .toList();
+
+    // 🛑 BUGFIX 2: Sincronizar referencias de memoria para evitar crasheo
+    if (_selectedVehicle != null) {
+      final matchedIndex = vehicles.indexWhere((v) => v.patente == _selectedVehicle!.patente);
+      if (matchedIndex != -1) {
+        // El vehículo sigue en la lista, actualizamos el puntero de memoria
+        _selectedVehicle = vehicles[matchedIndex];
+      } else {
+        // El vehículo ya no cumple los requisitos (ej. conductor inactivo), se limpia la selección
+        _selectedVehicle = null;
+      }
+    }
 
     return Form(
       key: _formKey,
@@ -532,7 +594,7 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
                   else
                     DropdownButtonFormField<Vehicle>(
                       isExpanded: true,
-                      initialValue: _selectedVehicle,
+                      value: _selectedVehicle,
                       items: vehicles
                           .map(
                             (v) => DropdownMenuItem(

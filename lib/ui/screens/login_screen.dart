@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../../providers/client_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/vehicle_provider.dart';
+import '../../providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -85,6 +86,7 @@ Future<void> _login() async {
       await context.read<ClientProvider>().fetchClients();
       await context.read<OrderProvider>().fetchOrders();
       await context.read<VehicleProvider>().fetchVehicles();
+      await context.read<UserProvider>().fetchUsers();
 
       // 🚀 Redirección por rol
       if (rol == 'admin') {
