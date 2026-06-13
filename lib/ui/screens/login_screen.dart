@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../../providers/client_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/vehicle_provider.dart';
+import '../../providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _login() async {
+Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -68,6 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
           .doc(uid)
           .get();
 
+      // FIX: Validar que el widget siga vivo después del await a Firestore
+      if (!mounted) return;
+
       if (!doc.exists) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Usuario no existe en Firestore')),
@@ -82,6 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<ClientProvider>().fetchClients();
       await context.read<OrderProvider>().fetchOrders();
       await context.read<VehicleProvider>().fetchVehicles();
+      await context.read<UserProvider>().fetchUsers();
 
       // 🚀 Redirección por rol
       if (rol == 'admin') {
@@ -90,6 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
         context.go('/home');
       }
     } on FirebaseAuthException {
+      // 🛑 OTRA PRECAUCIÓN: Validar mounted aquí también por si acaso
+      if (!mounted) return; 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Usuario o contraseña incorrectos')),
       );

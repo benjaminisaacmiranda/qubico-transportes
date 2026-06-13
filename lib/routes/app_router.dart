@@ -1,6 +1,6 @@
 import 'package:go_router/go_router.dart';
 
-import '../ui/screens/admin_dashboard_screen.dart';
+import '../ui/screens/admin/admin_dashboard_screen.dart';
 import '../ui/screens/auth_wrapper.dart'; // <-- Nuevo import del Wrapper
 import '../ui/screens/home_screen.dart';
 import '../ui/screens/login_screen.dart';

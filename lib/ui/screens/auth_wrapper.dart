@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Importa tus pantallas (ajusta las rutas según tu proyecto)
 import 'login_screen.dart';
-import 'admin_dashboard_screen.dart';
+import 'admin/admin_dashboard_screen.dart';
 import 'home_screen.dart'; // Pantalla del dashboard del conductor
 
 class AuthWrapper extends StatelessWidget {
