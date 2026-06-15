@@ -3,13 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/client_model.dart';
-import '../../models/order_model.dart';
-import '../../models/vehicle_model.dart';
-import '../../providers/client_provider.dart';
-import '../../providers/order_provider.dart';
-import '../../providers/vehicle_provider.dart';
-import '../theme/app_theme.dart';
+import '../../../models/client_model.dart';
+import '../../../models/order_model.dart';
+import '../../../models/vehicle_model.dart';
+import '../../../providers/client_provider.dart';
+import '../../../providers/order_provider.dart';
+import '../../../providers/vehicle_provider.dart';
+import '../../theme/app_theme.dart';
 
 class AdminOrderDetailScreen extends StatefulWidget {
   final Order order;
@@ -54,7 +54,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     } catch (_) {
       client = Client(
         rut: widget.order.clientId,
-        name: 'Cliente Desconocido',
+        name: 'Cliente Desconocido ADMIN ORDER DETAIL SCREEN',
         phone: 'No disponible',
         email: 'No disponible',
         billingAddress: widget.order.address,

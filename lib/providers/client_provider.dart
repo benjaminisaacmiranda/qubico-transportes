@@ -56,7 +56,12 @@ class ClientProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await DatabaseService.instance.update('clients', client.toMap(), 'rut', client.toMap()['rut']);
+      await DatabaseService.instance.update(
+        'clients',
+        client.toMap(),
+        'rut',
+        client.toMap()['rut'],
+      );
       await fetchClients();
     } catch (e) {
       debugPrint('Error updating client: $e');

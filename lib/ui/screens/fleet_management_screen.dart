@@ -51,7 +51,7 @@ class FleetManagementScreen extends StatelessWidget {
     );
 
     // Intentar pre-seleccionar el conductor actual del vehículo
-    String? selectedDriverName = vehicle?.driverName?.isNotEmpty == true
+    String? selectedDriverName = vehicle?.driverName.isNotEmpty == true
         ? vehicle!.driverName
         : null;
 
@@ -73,154 +73,157 @@ class FleetManagementScreen extends StatelessWidget {
               key: formKey,
               child: SizedBox(
                 width: 360,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Nombre
-                    TextFormField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre (Ej: Furgón A)',
-                        prefixIcon: Icon(Icons.local_shipping_outlined),
-                      ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Requerido' : null,
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Patente
-                    TextFormField(
-                      controller: patenteController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: 'Patente',
-                        prefixIcon: Icon(Icons.numbers_outlined),
-                      ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Requerido' : null,
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Capacidad
-                    TextFormField(
-                      controller: weightController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Capacidad Máxima (kg)',
-                        prefixIcon: Icon(Icons.scale_outlined),
-                      ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Requerido' : null,
-                    ),
-                    const SizedBox(height: 10),
-
-                    // ── Conductor Asignado ──────────────────────
-                    if (loadError)
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red[200]!),
+                // 👇 AQUÍ ESTÁ LA CORRECCIÓN 👇
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Nombre
+                      TextFormField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre (Ej: Furgón A)',
+                          prefixIcon: Icon(Icons.local_shipping_outlined),
                         ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: Colors.red,
-                              size: 18,
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'No se pudo cargar la lista de conductores. Verifica tu conexión.',
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 12,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Patente
+                      TextFormField(
+                        controller: patenteController,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: const InputDecoration(
+                          labelText: 'Patente',
+                          prefixIcon: Icon(Icons.numbers_outlined),
+                        ),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Capacidad
+                      TextFormField(
+                        controller: weightController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Capacidad Máxima (kg)',
+                          prefixIcon: Icon(Icons.scale_outlined),
+                        ),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // ── Conductor Asignado ──────────────────────
+                      if (loadError)
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red[200]!),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                                size: 18,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'No se pudo cargar la lista de conductores. Verifica tu conexión.',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
+                            ],
+                          ),
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          value: selectedDriverName, 
+                          decoration: const InputDecoration(
+                            labelText: 'Conductor Asignado',
+                            prefixIcon: Icon(Icons.drive_eta_outlined),
+                          ),
+                          hint: Text(
+                            conductores.isEmpty
+                                ? 'No hay conductores registrados'
+                                : 'Seleccione un conductor',
+                            style: TextStyle(
+                              color: conductores.isEmpty
+                                  ? Colors.red[400]
+                                  : Colors.grey[500],
+                              fontSize: 14,
                             ),
-                          ],
+                          ),
+                          items: conductores.isEmpty
+                              ? null
+                              : conductores
+                                    .map(
+                                      (c) => DropdownMenuItem<String>(
+                                        value: c['name'],
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.drive_eta,
+                                              size: 18,
+                                              color: AppTheme.accentOrange,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(c['name']!),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                          onChanged: conductores.isEmpty
+                              ? null
+                              : (v) => setState(() => selectedDriverName = v),
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Debe asignar un conductor'
+                              : null,
                         ),
-                      )
-                    else
-                      DropdownButtonFormField<String>(
-                        value: selectedDriverName,
-                        decoration: const InputDecoration(
-                          labelText: 'Conductor Asignado',
-                          prefixIcon: Icon(Icons.drive_eta_outlined),
-                        ),
-                        hint: Text(
-                          conductores.isEmpty
-                              ? 'No hay conductores registrados'
-                              : 'Seleccione un conductor',
-                          style: TextStyle(
-                            color: conductores.isEmpty
-                                ? Colors.red[400]
-                                : Colors.grey[500],
-                            fontSize: 14,
+
+                      // Aviso si no hay conductores
+                      if (!loadError && conductores.isEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange[200]!),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: AppTheme.accentOrange,
+                                size: 18,
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Crea un conductor en Gestión de Usuarios primero.',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        items: conductores.isEmpty
-                            ? null
-                            : conductores
-                                  .map(
-                                    (c) => DropdownMenuItem<String>(
-                                      value: c['name'],
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.drive_eta,
-                                            size: 18,
-                                            color: AppTheme.accentOrange,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(c['name']!),
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                        onChanged: conductores.isEmpty
-                            ? null
-                            : (v) => setState(() => selectedDriverName = v),
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'Debe asignar un conductor'
-                            : null,
-                      ),
-
-                    // Aviso si no hay conductores
-                    if (!loadError && conductores.isEmpty) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange[200]!),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: AppTheme.accentOrange,
-                              size: 18,
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Crea un conductor en Gestión de Usuarios primero.',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-              ),
-            ),
+                  ),
+                ), // Cierre del SingleChildScrollView
+              ), // Cierre del SizedBox
+            ), // Cierre del Form
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
