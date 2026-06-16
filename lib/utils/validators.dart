@@ -1,15 +1,29 @@
 class Validators {
   static String? validateRut(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'El RUT es obligatorio';
+    if (value == null || value.trim().isEmpty) return 'El RUT es obligatorio';
+
+    final rut = value.trim().toUpperCase();
+    if (!rut.contains('-')) return 'El RUT debe incluir guion (ej: 12345678-9)';
+
+    final partes = rut.split('-');
+    if (partes.length != 2) return 'Formato inválido';
+
+    final cuerpo = partes[0];
+    final dvIngresado = partes[1];
+
+    if (cuerpo.length < 7 || cuerpo.length > 8) return 'RUT inválido';
+    if (!RegExp(r'^\d+$').hasMatch(cuerpo)) return 'RUT inválido';
+
+    int suma = 0;
+    int multiplicador = 2;
+    for (int i = cuerpo.length - 1; i >= 0; i--) {
+      suma += int.parse(cuerpo[i]) * multiplicador;
+      multiplicador = multiplicador == 7 ? 2 : multiplicador + 1;
     }
-    
-    // Simple RUT validation logic (Chilean format)
-    String cleanRut = value.replaceAll(RegExp(r'[^0-9kK]'), '');
-    if (cleanRut.length < 8) return 'RUT inválido (muy corto)';
-    
-    // For Qúbico, we use RNF4: "RUT inválido: falta dígito verificador" if error
-    // (This is a simplified check, ideally uses a full modulo 11 algorithm)
+    final resto = 11 - (suma % 11);
+    final dvCorrecto = resto == 11 ? '0' : resto == 10 ? 'K' : resto.toString();
+
+    if (dvIngresado != dvCorrecto) return 'RUT no válido (dígito verificador incorrecto)';
     return null;
   }
 

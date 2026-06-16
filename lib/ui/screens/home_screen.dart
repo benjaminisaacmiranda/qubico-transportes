@@ -6,13 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../models/client_model.dart';
 import '../../models/order_model.dart';
 import '../../models/vehicle_model.dart';
-import '../../providers/client_provider.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/vehicle_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/connectivity_banner.dart';
 import 'login_screen.dart';
 import 'map_screen.dart';
 import 'order_detail_screen.dart';
@@ -26,6 +25,33 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+
+  String? _currentUserName;
+  String? _currentUserRut;
+  String? _currentUserEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OrderProvider>().startListening(isAdmin: false);
+      _loadCurrentUser();
+    });
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    if (doc.exists && mounted) {
+      final data = doc.data()!;
+      setState(() {
+        _currentUserName = data['fullName'] as String?;
+        _currentUserRut = data['rut'] as String?;
+        _currentUserEmail = data['correo'] as String?;
+      });
+    }
+  }
 
   Future<void> _makePhoneCall(String phoneNumber) async {
     final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
@@ -73,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
+          const ConnectivityBanner(),
           _buildConductorHeader(),
           Expanded(
             child: IndexedStack(
@@ -214,14 +241,14 @@ class _HomeScreenState extends State<HomeScreen> {
     Vehicle assignedVehicle;
     try {
       assignedVehicle = vehicleProvider.vehicles.firstWhere(
-        (v) => v.driverName == 'Juan Perez',
+        (v) => v.driverName == _currentUserName,
       );
     } catch (_) {
       assignedVehicle = Vehicle(
-        name: 'Furgón Pequeño',
-        patente: 'AB-CD-12',
-        maxWeight: 300.0,
-        driverName: 'Juan Perez',
+        name: 'Sin vehículo asignado',
+        patente: '---',
+        maxWeight: 0.0,
+        driverName: _currentUserName ?? '',
       );
     }
 
@@ -416,7 +443,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         radius: 36,
                         backgroundColor: colorScheme.primary.withOpacity(0.12),
                         child: Text(
-                          'JP',
+                          _currentUserName != null && _currentUserName!.isNotEmpty
+                              ? _currentUserName!
+                                  .split(' ')
+                                  .where((w) => w.isNotEmpty)
+                                  .take(2)
+                                  .map((w) => w[0].toUpperCase())
+                                  .join()
+                              : '?',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -430,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Juan Pérez',
+                              _currentUserName ?? 'Cargando...',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 20,
@@ -439,7 +473,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'RUT: 12.345.678-9',
+                              'RUT: ${_currentUserRut ?? '-'}',
                               style: TextStyle(
                                 color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
                                 fontSize: 13,
@@ -447,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'juan@qubico.cl',
+                              _currentUserEmail ?? '-',
                               style: TextStyle(
                                 color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
                                 fontSize: 13,
@@ -607,7 +641,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRouteTimeline(BuildContext context) {
     final provider = context.watch<OrderProvider>();
-    final clientProvider = context.read<ClientProvider>();
     final today = DateTime.now();
     final todaysOrders = provider.orders
         .where(
@@ -636,20 +669,6 @@ class _HomeScreenState extends State<HomeScreen> {
       itemCount: todaysOrders.length,
       itemBuilder: (context, index) {
         final order = todaysOrders[index];
-        Client client;
-        try {
-          client = clientProvider.clients.firstWhere((c) => c.rut == order.clientId);
-        } catch (e) {
-          print("NO ENCONTRADO");
-          client = Client(
-            rut: order.clientId,
-            name: 'Cliente Desconocido HOME SCREEN',
-            phone: '',
-            email: '',
-            billingAddress: '',
-          );
-        }
-
         final isNext = index == nextOrderIndex;
 
         return IntrinsicHeight(
@@ -681,7 +700,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 24),
-                  child: _buildOrderCard(context, order, client, isNext),
+                  child: _buildOrderCard(context, order, isNext),
                 ),
               ),
             ],
@@ -691,7 +710,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildOrderCard(BuildContext context, Order order, Client client, bool isNext) {
+  Widget _buildOrderCard(BuildContext context, Order order, bool isNext) {
     final colorScheme = Theme.of(context).colorScheme;
     final isHighContrast = colorScheme.surface == Colors.white;
 
@@ -744,7 +763,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        client.name,
+                        order.clientName.isNotEmpty ? order.clientName : order.clientId,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 17, // Legibilidad aumentada
@@ -802,7 +821,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _makePhoneCall(client.phone),
+                        onPressed: () => _makePhoneCall(order.clientPhone),
                         icon: const Icon(Icons.phone, size: 18),
                         label: const Text('Llamar'),
                         style: OutlinedButton.styleFrom(

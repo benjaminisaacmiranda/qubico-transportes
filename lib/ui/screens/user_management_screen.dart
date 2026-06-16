@@ -108,8 +108,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
           padding: const EdgeInsets.all(12),
           itemCount: users.length,
           itemBuilder: (context, index) {
-            final data = users[index].data() as Map<String, dynamic>;
+            final doc = users[index];
+            final data = doc.data() as Map<String, dynamic>;
             final rol = data['rol'] as String? ?? 'usuario';
+            final isActive = data['isActive'] as bool? ?? false;
 
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
@@ -119,6 +121,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 side: BorderSide(color: Colors.grey[200]!, width: 1),
               ),
               child: ListTile(
+                onTap: () => _showEditUserDialog(doc.id, data),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 4,
@@ -129,29 +132,40 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 ),
                 title: Text(
                   data['fullName'] ?? 'Sin nombre',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isActive ? Colors.black87 : Colors.grey,
+                  ),
                 ),
                 subtitle: Text(
                   data['correo'] ?? '',
                   style: TextStyle(color: Colors.grey[600], fontSize: 13),
                 ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _roleColor(rol).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    _roleLabel(rol),
-                    style: TextStyle(
-                      color: _roleColor(rol),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _roleColor(rol).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _roleLabel(rol),
+                        style: TextStyle(
+                          color: _roleColor(rol),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      isActive ? Icons.check_circle : Icons.cancel,
+                      color: isActive ? Colors.green : Colors.red,
+                      size: 18,
+                    ),
+                  ],
                 ),
               ),
             );
@@ -389,7 +403,7 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Requerido';
-                        if (v.length < 8) return 'Mínimo 8 caracteres';
+                        if (v.length < 6) return 'Mínimo 6 caracteres';
                         return null;
                       },
                     ),
@@ -586,6 +600,151 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Error inesperado: $e'),
+                              backgroundColor: Colors.red[700],
+                            ),
+                          );
+                        }
+                      }
+                    },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════
+  // DIÁLOGO EDITAR USUARIO
+  // ══════════════════════════════════════════════════════
+  void _showEditUserDialog(String uid, Map<String, dynamic> data) {
+    String selectedRole = data['rol'] as String? ?? 'usuario';
+    bool isActive = data['isActive'] as bool? ?? false;
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.edit, color: AppTheme.primaryBlue, size: 22),
+              const SizedBox(width: 8),
+              const Text('Editar Usuario'),
+            ],
+          ),
+          content: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data['fullName'] ?? 'Sin nombre',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+                Text(
+                  data['correo'] ?? '',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  decoration: const InputDecoration(
+                    labelText: 'Rol',
+                    prefixIcon: Icon(Icons.manage_accounts_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'conductor',
+                      child: Row(
+                        children: [
+                          Icon(Icons.drive_eta, size: 18, color: AppTheme.accentOrange),
+                          SizedBox(width: 8),
+                          Text('CONDUCTOR'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'admin',
+                      child: Row(
+                        children: [
+                          Icon(Icons.admin_panel_settings, size: 18, color: AppTheme.primaryBlue),
+                          SizedBox(width: 8),
+                          Text('ADMINISTRADOR'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'usuario',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person, size: 18, color: Colors.grey),
+                          SizedBox(width: 8),
+                          Text('USUARIO'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (v) => setDialogState(() => selectedRole = v!),
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Cuenta activa'),
+                  subtitle: Text(
+                    isActive ? 'El usuario puede iniciar sesión' : 'Acceso bloqueado',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isActive ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  value: isActive,
+                  activeColor: Colors.green,
+                  onChanged: (v) => setDialogState(() => isActive = v),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(dialogContext),
+              child: const Text('CANCELAR'),
+            ),
+            ElevatedButton.icon(
+              icon: isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.save, size: 18),
+              label: Text(isSaving ? 'Guardando…' : 'GUARDAR'),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      setDialogState(() => isSaving = true);
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(uid)
+                            .update({'rol': selectedRole, 'isActive': isActive});
+
+                        if (mounted) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Usuario actualizado correctamente.'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        setDialogState(() => isSaving = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error al actualizar: $e'),
                               backgroundColor: Colors.red[700],
                             ),
                           );

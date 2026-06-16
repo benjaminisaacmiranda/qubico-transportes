@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:qubico/providers/client_provider.dart';
 import 'package:qubico/providers/vehicle_provider.dart';
 import 'package:qubico/ui/theme/app_theme.dart';
+import 'package:qubico/ui/screens/client_management_screen.dart';
 import 'package:qubico/ui/screens/fleet_management_screen.dart';
 import 'package:qubico/ui/screens/user_management_screen.dart';
 import 'package:qubico/ui/screens/reports_screen.dart';
@@ -33,6 +35,21 @@ class AjustesTab extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FleetManagementScreen()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildAjustesTile(
+          icon: Icons.contacts_outlined,
+          title: 'Gestión de Clientes',
+          subtitle: 'Crear, editar y eliminar clientes registrados',
+          onTap: () {
+            context.read<ClientProvider>().fetchClients();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ClientManagementScreen(),
+              ),
             );
           },
         ),

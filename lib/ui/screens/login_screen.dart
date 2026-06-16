@@ -25,6 +25,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _canLogin = false;
 
+  // RNF-11: bloqueo tras 5 intentos fallidos, por correo, durante 5 minutos.
+  static const int _maxAttempts = 5;
+  static const Duration _lockoutDuration = Duration(minutes: 5);
+  final Map<String, int> _failedAttempts = {};
+  final Map<String, DateTime> _lockoutUntil = {};
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +58,20 @@ Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
+    final lockoutUntil = _lockoutUntil[email];
+    if (lockoutUntil != null && DateTime.now().isBefore(lockoutUntil)) {
+      final minutesLeft = lockoutUntil.difference(DateTime.now()).inMinutes + 1;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cuenta bloqueada por intentos fallidos. Intente en $minutesLeft minuto(s).',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     try {
       // 🔐 Login con Firebase Auth
       final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -60,6 +80,10 @@ Future<void> _login() async {
       );
 
       if (!mounted) return;
+
+      // Credenciales correctas: se limpia el contador de intentos fallidos.
+      _failedAttempts.remove(email);
+      _lockoutUntil.remove(email);
 
       // 📦 Buscar datos en Firestore por UID
       final uid = cred.user!.uid;
@@ -81,6 +105,19 @@ Future<void> _login() async {
 
       final data = doc.data() as Map<String, dynamic>;
       final rol = data['rol'];
+      final isActive = data['isActive'] as bool? ?? false;
+
+      if (!isActive) {
+        await FirebaseAuth.instance.signOut();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tu cuenta está desactivada. Contacta al administrador.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       // Cargar datos locales
       await context.read<ClientProvider>().fetchClients();
@@ -96,10 +133,31 @@ Future<void> _login() async {
       }
     } on FirebaseAuthException {
       // 🛑 OTRA PRECAUCIÓN: Validar mounted aquí también por si acaso
-      if (!mounted) return; 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario o contraseña incorrectos')),
-      );
+      if (!mounted) return;
+
+      final attempts = (_failedAttempts[email] ?? 0) + 1;
+      _failedAttempts[email] = attempts;
+
+      if (attempts >= _maxAttempts) {
+        _lockoutUntil[email] = DateTime.now().add(_lockoutDuration);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Demasiados intentos fallidos. Cuenta bloqueada por ${_lockoutDuration.inMinutes} minutos.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        final remaining = _maxAttempts - attempts;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Usuario o contraseña incorrectos. Intentos restantes: $remaining',
+            ),
+          ),
+        );
+      }
     }
   }
 

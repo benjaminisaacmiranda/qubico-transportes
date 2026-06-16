@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../models/client_model.dart';
@@ -48,9 +50,15 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
   bool _isLoading = true;
 
   Vehicle? _selectedVehicle;
-  String _selectedWindow = '08:00 - 10:00';
+  String? _selectedWindow;
   String _selectedLoad = 'Paquetería';
   Timer? _debounceTimer;
+
+  Order? _editingOrder;
+  bool _isEditing = false;
+
+  String? _selectedDriverId;
+  String _selectedDriverName = '';
 
   @override
   void initState() {
@@ -100,8 +108,12 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
   void loadOrderForEdit(Order order) {
     setState(() {
+      _editingOrder = order;
+      _isEditing = true;
       _selectedClient = null;
       _isManualClient = true;
+      _selectedDriverId = order.driverId;
+      _selectedDriverName = order.driverName;
       _rutController.text = order.clientId;
       _clientNameController.text = '';
 
@@ -134,9 +146,13 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
   void _resetForm() {
     setState(() {
+      _editingOrder = null;
+      _isEditing = false;
       _selectedClient = null;
       _isManualClient = true;
       _selectedVehicle = null;
+      _selectedDriverId = null;
+      _selectedDriverName = '';
       _rutController.clear();
       _clientNameController.clear();
       _phoneController.clear();
@@ -148,13 +164,27 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
       _lengthController.clear();
       _widthController.clear();
       _heightController.clear();
-      _selectedWindow = '08:00 - 10:00';
+      _selectedWindow = null;
       _selectedLoad = 'Paquetería';
     });
   }
 
   Future<void> _saveOrder() async {
     if (_formKey.currentState!.validate()) {
+      if (_selectedWindow == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Debe seleccionar una ventana horaria.')),
+        );
+        return;
+      }
+
+      if (_selectedDriverId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Debe asignar un conductor.')),
+        );
+        return;
+      }
+
       if (_selectedVehicle == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Debe asignar un vehículo.')),
@@ -207,31 +237,42 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
       }
 
       final order = Order(
+        id: _isEditing ? _editingOrder!.id : null,
         clientId: _rutController.text.trim().isNotEmpty
             ? _rutController.text.trim()
             : _clientNameController.text.trim(),
+        clientName: _clientNameController.text.trim(),
+        clientPhone: _phoneController.text.trim(),
         address: fullAddress,
         weight: weight,
         length: double.tryParse(_lengthController.text) ?? 0.0,
         width: double.tryParse(_widthController.text) ?? 0.0,
         height: double.tryParse(_heightController.text) ?? 0.0,
         loadType: _selectedLoad,
-        timeWindow: _selectedWindow,
-        status: 'Pendiente',
-        scheduledDate: DateTime.now(),
-        driverId: _selectedVehicle!.driverName,
+        timeWindow: _selectedWindow!,
+        status: _isEditing ? _editingOrder!.status : 'Pendiente',
+        scheduledDate: _isEditing ? _editingOrder!.scheduledDate : DateTime.now(),
+        driverId: _selectedDriverId!,
+        driverName: _selectedDriverName,
       );
 
-      await context.read<OrderProvider>().addOrder(order);
-      
+      if (!mounted) return;
+      if (_isEditing) {
+        await context.read<OrderProvider>().updateOrder(order);
+      } else {
+        await context.read<OrderProvider>().addOrder(order);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pedido registrado y asignado exitosamente'),
+          SnackBar(
+            content: Text(_isEditing
+                ? 'Pedido actualizado exitosamente'
+                : 'Pedido registrado y asignado exitosamente'),
           ),
         );
         _resetForm();
-        widget.onOrderSaved(); 
+        widget.onOrderSaved();
       }
     }
   }
@@ -258,18 +299,12 @@ Widget build(BuildContext context) {
     }
 
     final clients = context.watch<ClientProvider>().clients;
-    final users = context.watch<UserProvider>().users;
 
-    // BUGFIX 1: Filtro a prueba de errores humanos (ignora espacios extra y mayúsculas)
-    final activeDriverNames = users
-        .where((u) => u.isActive)
-        .map((u) => u.fullName.trim().toLowerCase())
-        .toSet();
-
+    // Mostrar todos los vehículos que tienen conductor asignado
     final vehicles = context
         .watch<VehicleProvider>()
         .vehicles
-        .where((v) => activeDriverNames.contains(v.driverName.trim().toLowerCase()))
+        .where((v) => v.driverName.trim().isNotEmpty)
         .toList();
 
     // 🛑 BUGFIX 2: Sincronizar referencias de memoria para evitar crasheo
@@ -283,6 +318,16 @@ Widget build(BuildContext context) {
         _selectedVehicle = null;
       }
     }
+
+    // HU02.1: conductores con un pedido activo (no Entregado/Anulado) no deben
+    // aparecer disponibles para un nuevo despacho, salvo que sea el conductor
+    // ya asignado al pedido que se está editando actualmente.
+    final busyDriverIds = context
+        .watch<OrderProvider>()
+        .orders
+        .where((o) => o.status != 'Entregado' && o.status != 'Anulado')
+        .map((o) => o.driverId)
+        .toSet();
 
     return Form(
       key: _formKey,
@@ -420,7 +465,17 @@ Widget build(BuildContext context) {
                       prefixText: '+56 ',
                     ),
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(9),
+                    ],
                     readOnly: !_isManualClient,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      if (v.trim().length != 9) return 'Debe tener 9 dígitos';
+                      if (!v.trim().startsWith('9')) return 'Debe comenzar con 9';
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -515,6 +570,7 @@ Widget build(BuildContext context) {
                   const Divider(height: 24),
                   DropdownButtonFormField<String>(
                     initialValue: _selectedWindow,
+                    hint: const Text('Seleccione una ventana horaria'),
                     items:
                         [
                               '08:00 - 10:00',
@@ -526,10 +582,12 @@ Widget build(BuildContext context) {
                               (e) => DropdownMenuItem(value: e, child: Text(e)),
                             )
                             .toList(),
-                    onChanged: (v) => setState(() => _selectedWindow = v!),
+                    onChanged: (v) => setState(() => _selectedWindow = v),
                     decoration: const InputDecoration(
                       labelText: 'Ventana Horaria *',
                     ),
+                    validator: (v) =>
+                        v == null ? 'Seleccione una ventana horaria' : null,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -568,6 +626,7 @@ Widget build(BuildContext context) {
                           controller: _lengthController,
                           decoration: const InputDecoration(labelText: 'Largo'),
                           keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -576,6 +635,7 @@ Widget build(BuildContext context) {
                           controller: _widthController,
                           decoration: const InputDecoration(labelText: 'Ancho'),
                           keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -584,6 +644,7 @@ Widget build(BuildContext context) {
                           controller: _heightController,
                           decoration: const InputDecoration(labelText: 'Alto'),
                           keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         ),
                       ),
                     ],
@@ -622,9 +683,54 @@ Widget build(BuildContext context) {
                     ],
                   ),
                   const Divider(height: 24),
+                  // ── Selector de conductor ──────────────────────
+                  StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .where('rol', isEqualTo: 'conductor')
+                        .where('isActive', isEqualTo: true)
+                        .snapshots(),
+                    builder: (context, snap) {
+                      final conductores = (snap.data?.docs ?? [])
+                          .where((doc) =>
+                              !busyDriverIds.contains(doc.id) ||
+                              doc.id == _selectedDriverId)
+                          .toList();
+                      return DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        value: _selectedDriverId,
+                        decoration: const InputDecoration(
+                          labelText: 'Conductor Asignado *',
+                          prefixIcon: Icon(Icons.drive_eta_outlined),
+                        ),
+                        items: conductores.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return DropdownMenuItem<String>(
+                            value: doc.id,
+                            child: Text(
+                              data['fullName'] ?? 'Sin nombre',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (uid) {
+                          if (uid == null) return;
+                          final doc = conductores.firstWhere((d) => d.id == uid);
+                          final data = doc.data() as Map<String, dynamic>;
+                          setState(() {
+                            _selectedDriverId = uid;
+                            _selectedDriverName = data['fullName'] ?? '';
+                          });
+                        },
+                        validator: (v) => v == null ? 'Seleccione un conductor' : null,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  // ── Selector de vehículo ───────────────────────
                   if (vehicles.isEmpty)
                     const Text(
-                      'No hay vehículos activos con conductores activos. Registre uno en Ajustes > Gestión de Flota.',
+                      'No hay vehículos registrados. Agregue uno en Ajustes > Gestión de Flota.',
                       style: TextStyle(color: Colors.red, fontSize: 13),
                     )
                   else
@@ -644,7 +750,8 @@ Widget build(BuildContext context) {
                           .toList(),
                       onChanged: (v) => setState(() => _selectedVehicle = v!),
                       decoration: const InputDecoration(
-                        labelText: 'Vehículo Asignado *',
+                        labelText: 'Vehículo *',
+                        prefixIcon: Icon(Icons.local_shipping_outlined),
                       ),
                       validator: (v) => v == null ? 'Requerido' : null,
                     ),

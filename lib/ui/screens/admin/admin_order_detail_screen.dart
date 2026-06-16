@@ -3,10 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../models/client_model.dart';
 import '../../../models/order_model.dart';
 import '../../../models/vehicle_model.dart';
-import '../../../providers/client_provider.dart';
 import '../../../providers/order_provider.dart';
 import '../../../providers/vehicle_provider.dart';
 import '../../theme/app_theme.dart';
@@ -42,26 +40,16 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final clientProvider = context.read<ClientProvider>();
     final vehicleProvider = context.read<VehicleProvider>();
 
-    // 1. Fetch Client info
-    Client client;
-    try {
-      client = clientProvider.clients.firstWhere(
-        (c) => c.rut == widget.order.clientId,
-      );
-    } catch (_) {
-      client = Client(
-        rut: widget.order.clientId,
-        name: 'Cliente Desconocido ADMIN ORDER DETAIL SCREEN',
-        phone: 'No disponible',
-        email: 'No disponible',
-        billingAddress: widget.order.address,
-      );
-    }
+    final clientName = widget.order.clientName.isNotEmpty
+        ? widget.order.clientName
+        : widget.order.clientId;
+    final clientPhone = widget.order.clientPhone.isNotEmpty
+        ? widget.order.clientPhone
+        : 'No disponible';
 
-    // 2. Fetch Vehicle & Driver info
+    // Fetch Vehicle & Driver info
     Vehicle? vehicle;
     try {
       vehicle = vehicleProvider.vehicles.firstWhere(
@@ -232,7 +220,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                             0.05,
                           ),
                           child: Text(
-                            client.name.substring(0, 2).toUpperCase(),
+                            clientName.length >= 2
+                                ? clientName.substring(0, 2).toUpperCase()
+                                : clientName.toUpperCase(),
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: AppTheme.primaryBlue,
@@ -245,7 +235,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                client.name,
+                                clientName,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -254,7 +244,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'RUT: ${client.rut}',
+                                'RUT: ${widget.order.clientId}',
                                 style: const TextStyle(
                                   color: Colors.grey,
                                   fontSize: 13,
@@ -269,13 +259,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                     _buildDetailRow(
                       Icons.phone_outlined,
                       'Teléfono de Contacto',
-                      client.phone,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildDetailRow(
-                      Icons.mail_outline,
-                      'Correo Electrónico',
-                      client.email,
+                      clientPhone,
                     ),
                     const SizedBox(height: 12),
                     _buildDetailRow(
@@ -310,7 +294,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                     _buildDetailRow(
                       Icons.person_pin_circle_outlined,
                       'Conductor Asignado',
-                      widget.order.driverId ?? 'No asignado',
+                      widget.order.driverName.isNotEmpty
+                          ? widget.order.driverName
+                          : (widget.order.driverId ?? 'No asignado'),
                       subtitle: 'Responsable de la Hoja de Ruta',
                     ),
                     if (vehicle != null) ...[

@@ -36,25 +36,7 @@ class PdfService {
             ],
           ),
           pw.SizedBox(height: 20),
-          pw.TableHelper.fromTextArray(
-            context: context,
-            border: pw.TableBorder.all(),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
-            cellAlignment: pw.Alignment.centerLeft,
-            headers: ['ID', 'Cliente', 'Dirección', 'Ventana', 'Estado', 'Puntualidad'],
-            data: orders.map((o) {
-              final punctuality = _calculatePunctuality(o);
-              return [
-                o.id.toString(),
-                o.clientId,
-                o.address,
-                o.timeWindow,
-                o.status,
-                punctuality,
-              ];
-            }).toList(),
-          ),
+          _buildOrdersTable(orders),
           pw.SizedBox(height: 30),
           _buildSummary(orders),
         ],
@@ -103,6 +85,17 @@ class PdfService {
   static String _calculatePunctuality(Order order) {
     if (order.status != 'Entregado') return '-';
     if (order.deliveryTime == null) return '-';
+    final diff = _delayMinutes(order);
+    if (diff != null) return 'Atrasado ($diff min)';
+    return 'A tiempo';
+  }
+
+  /// Minutos de atraso respecto al fin de la ventana horaria. Devuelve null
+  /// si el pedido no ha sido entregado o si fue entregado a tiempo.
+  static int? _delayMinutes(Order order) {
+    if (order.status != 'Entregado' || order.deliveryTime == null) {
+      return null;
+    }
 
     final endWindowStr = order.timeWindow.split(' - ').last;
     final parts = endWindowStr.split(':');
@@ -115,10 +108,86 @@ class PdfService {
     );
 
     if (order.deliveryTime!.isAfter(endWindow)) {
-      final diff = order.deliveryTime!.difference(endWindow).inMinutes;
-      return 'Atrasado ($diff min)';
+      return order.deliveryTime!.difference(endWindow).inMinutes;
     }
-    return 'A tiempo';
+    return null;
+  }
+
+  static pw.Widget _buildOrdersTable(List<Order> orders) {
+    const headers = [
+      'ID',
+      'Cliente',
+      'Dirección',
+      'Ventana',
+      'Estado',
+      'Puntualidad',
+    ];
+
+    return pw.Table(
+      border: pw.TableBorder.all(),
+      columnWidths: const {
+        0: pw.FlexColumnWidth(1.2),
+        1: pw.FlexColumnWidth(2),
+        2: pw.FlexColumnWidth(3),
+        3: pw.FlexColumnWidth(1.5),
+        4: pw.FlexColumnWidth(1.5),
+        5: pw.FlexColumnWidth(2),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.blue900),
+          children: headers
+              .map(
+                (h) => pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(
+                    h,
+                    style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+        ...orders.map((o) {
+          final delay = _delayMinutes(o);
+          // RNF/HU06: resaltar en rojo entregas con más de 15 minutos de atraso.
+          final isLate = delay != null && delay > 15;
+          final cells = [
+            o.id.toString(),
+            o.clientId,
+            o.address,
+            o.timeWindow,
+            o.status,
+            _calculatePunctuality(o),
+          ];
+
+          return pw.TableRow(
+            decoration: isLate
+                ? const pw.BoxDecoration(color: PdfColors.red50)
+                : null,
+            children: cells
+                .map(
+                  (c) => pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text(
+                      c,
+                      style: isLate
+                          ? pw.TextStyle(
+                              color: PdfColors.red900,
+                              fontWeight: pw.FontWeight.bold,
+                            )
+                          : null,
+                    ),
+                  ),
+                )
+                .toList(),
+          );
+        }),
+      ],
+    );
   }
 
   static pw.Widget _buildSummary(List<Order> orders) {

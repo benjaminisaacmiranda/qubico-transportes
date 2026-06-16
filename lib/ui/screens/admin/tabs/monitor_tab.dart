@@ -132,7 +132,7 @@ class MonitorTab extends StatelessWidget {
           else
             ...vehicleProvider.vehicles.map((vehicle) {
               final driverOrders = todayOrders
-                  .where((o) => o.driverId == vehicle.driverName)
+                  .where((o) => o.driverName == vehicle.driverName)
                   .toList();
 
               final hasActiveOrders = driverOrders.any((o) => 
@@ -150,7 +150,7 @@ class MonitorTab extends StatelessWidget {
                 } else {
                   final entregados = driverOrders.where((o) => o.status == 'Entregado').toList();
                   if (entregados.isNotEmpty) {
-                    entregados.sort((a, b) => (b.id ?? 0).compareTo(a.id ?? 0));
+                    entregados.sort((a, b) => (b.id ?? '').compareTo(a.id ?? ''));
                     lastOrderText = 'Pedido #${entregados.first.id} (Entregado)';
                   } else {
                     lastOrderText = 'Pedido #${driverOrders.first.id} (Próximo)';

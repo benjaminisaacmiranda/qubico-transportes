@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/client_model.dart';
 import '../services/database_service.dart';
+import '../services/security_service.dart';
 
 class ClientProvider with ChangeNotifier {
   List<Client> _clients = [];
@@ -77,8 +78,12 @@ class ClientProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // The rut stored in DB is encrypted, so we need to encrypt before querying
-      await DatabaseService.instance.delete('clients', 'rut', rut);
+      // El rut almacenado en la BD está encriptado, hay que encriptar antes de buscar
+      await DatabaseService.instance.delete(
+        'clients',
+        'rut',
+        SecurityService.encrypt(rut),
+      );
       await fetchClients();
     } catch (e) {
       debugPrint('Error deleting client: $e');

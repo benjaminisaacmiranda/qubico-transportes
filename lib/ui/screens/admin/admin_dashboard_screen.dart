@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import 'package:qubico/models/order_model.dart';
+import 'package:qubico/providers/order_provider.dart';
 import 'package:qubico/ui/theme/app_theme.dart';
+import 'package:qubico/ui/widgets/connectivity_banner.dart';
 
 import 'tabs/inicio_tab.dart';
 import 'tabs/monitor_tab.dart';
@@ -21,9 +24,17 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _currentIndex = 0;
-  
-  // Llave global para poder acceder al estado del formulario desde el padre
-  final GlobalKey<NuevoDespachoTabState> _nuevoTabKey = GlobalKey<NuevoDespachoTabState>();
+
+  final GlobalKey<NuevoDespachoTabState> _nuevoTabKey =
+      GlobalKey<NuevoDespachoTabState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OrderProvider>().startListening(isAdmin: true);
+    });
+  }
 
   void _navigateToInicio() {
     setState(() {
@@ -79,6 +90,7 @@ void _editOrder(Order order) {
       ),
       body: Column(
         children: [
+          const ConnectivityBanner(),
           _buildAdminHeader(),
           Expanded(
             child: IndexedStack(

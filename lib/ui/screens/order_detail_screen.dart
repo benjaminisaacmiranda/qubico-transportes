@@ -1,13 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:signature/signature.dart';
 
-import '../../models/client_model.dart';
 import '../../models/order_model.dart';
-import '../../providers/client_provider.dart';
 import '../../providers/order_provider.dart';
 import '../theme/app_theme.dart';
 
@@ -65,10 +64,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       maxHeight: 1024,
     );
     if (photo != null) {
+      final compressed = await _ensureUnder500KB(File(photo.path));
       setState(() {
-        _capturedImage = File(photo.path);
+        _capturedImage = compressed;
       });
     }
+  }
+
+  /// RNF-09: garantiza que la evidencia fotográfica no supere los 500KB,
+  /// reintentando la compresión con calidad decreciente si es necesario.
+  Future<File> _ensureUnder500KB(File file) async {
+    const maxBytes = 500 * 1024;
+    var bytes = await file.readAsBytes();
+    if (bytes.length <= maxBytes) return file;
+
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return file;
+
+    for (final quality in [70, 50, 30, 15]) {
+      final encoded = img.encodeJpg(decoded, quality: quality);
+      bytes = encoded;
+      if (encoded.length <= maxBytes) break;
+    }
+
+    await file.writeAsBytes(bytes);
+    return file;
   }
 
   void _updateStatus(
@@ -128,9 +148,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         imageQuality: 50,
                       );
                       if (photo != null) {
-                        setDialogState(() => _capturedImage = File(photo.path));
+                        final compressed =
+                            await _ensureUnder500KB(File(photo.path));
+                        setDialogState(() => _capturedImage = compressed);
                         setState(
-                          () => _capturedImage = File(photo.path),
+                          () => _capturedImage = compressed,
                         ); // update main state too
                       }
                     },
@@ -159,10 +181,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             source: ImageSource.camera,
                             imageQuality: 50,
                           );
-                          if (photo != null)
+                          if (photo != null) {
+                            final compressed =
+                                await _ensureUnder500KB(File(photo.path));
                             setDialogState(
-                              () => _capturedImage = File(photo.path),
+                              () => _capturedImage = compressed,
                             );
+                          }
                         },
                         icon: const Icon(Icons.refresh),
                         label: const Text('REPETIR FOTO'),
@@ -204,21 +229,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final clientProvider = context.read<ClientProvider>();
-    Client client;
-    try {
-      client = clientProvider.clients.firstWhere(
-        (c) => c.rut == widget.order.clientId,
-      );
-    } catch (e) {
-      client = Client(
-        rut: widget.order.clientId,
-        name: 'Cliente Desconocido ORDER DETAIL SCREEN',
-        phone: '',
-        email: '',
-        billingAddress: '',
-      );
-    }
+    final clientName = widget.order.clientName.isNotEmpty
+        ? widget.order.clientName
+        : widget.order.clientId;
 
     final isReadOnly =
         widget.isAdmin ||
@@ -268,7 +281,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      client.name,
+                      clientName,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
