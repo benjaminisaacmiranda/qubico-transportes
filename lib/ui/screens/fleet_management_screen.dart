@@ -5,9 +5,17 @@ import 'package:provider/provider.dart';
 import '../../models/vehicle_model.dart';
 import '../../providers/vehicle_provider.dart';
 import '../theme/app_theme.dart';
+import 'package:flutter/services.dart';
 
-class FleetManagementScreen extends StatelessWidget {
+class FleetManagementScreen extends StatefulWidget {
   const FleetManagementScreen({super.key});
+
+  @override
+  State<FleetManagementScreen> createState() =>
+      _FleetManagementScreenState();
+}
+
+class _FleetManagementScreenState extends State<FleetManagementScreen> {
 
   // ── Abre el diálogo cargando conductores desde Firestore ──
   void _showVehicleDialog(BuildContext context, {Vehicle? vehicle}) async {
@@ -92,28 +100,57 @@ class FleetManagementScreen extends StatelessWidget {
 
                       // Patente
                       TextFormField(
-                        controller: patenteController,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(
-                          labelText: 'Patente',
-                          prefixIcon: Icon(Icons.numbers_outlined),
-                        ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Requerido' : null,
-                      ),
+  controller: patenteController,
+  decoration: const InputDecoration(
+    labelText: 'Patente',
+    prefixIcon: Icon(Icons.numbers_outlined),
+    hintText: 'AB-CD-12',
+  ),
+  onChanged: (value) {
+    String text = value
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+    if (text.length > 6) {
+      text = text.substring(0, 6);
+    }
+
+    String formatted = '';
+
+    for (int i = 0; i < text.length; i++) {
+      if (i == 2 || i == 4) formatted += '-';
+      formatted += text[i];
+    }
+
+    patenteController.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  },
+  validator: (v) {
+    if (v == null || v.isEmpty) return 'Requerido';
+    if (!RegExp(r'^[A-Z]{2}-[A-Z]{2}-\d{2}$').hasMatch(v)) {
+      return 'Formato inválido (AB-CD-12)';
+    }
+    return null;
+  },
+),
                       const SizedBox(height: 10),
 
                       // Capacidad
                       TextFormField(
-                        controller: weightController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Capacidad Máxima (kg)',
-                          prefixIcon: Icon(Icons.scale_outlined),
-                        ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Requerido' : null,
-                      ),
+                            controller: weightController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly, //
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: 'Capacidad Máxima (kg)',
+                              prefixIcon: Icon(Icons.scale_outlined),
+                            ),
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Requerido' : null,
+                          ),
                       const SizedBox(height: 10),
 
                       // ── Conductor Asignado ──────────────────────
@@ -240,11 +277,14 @@ class FleetManagementScreen extends StatelessWidget {
                       driverName: selectedDriverName ?? '',
                     );
 
-                    if (vehicle == null) {
-                      context.read<VehicleProvider>().addVehicle(newVehicle);
-                    } else {
-                      context.read<VehicleProvider>().updateVehicle(newVehicle);
-                    }
+                   if (vehicle == null) {
+                          context.read<VehicleProvider>().addVehicle(newVehicle);
+                        } else {
+                          context.read<VehicleProvider>().updateVehicle(
+                            newVehicle,
+                            vehicle!.patente, // 
+                          );
+                        }
 
                     Navigator.pop(context);
                   }
@@ -374,10 +414,13 @@ class FleetManagementScreen extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showVehicleDialog(context),
-        backgroundColor: AppTheme.primaryBlue,
-        child: const Icon(Icons.add),
-      ),
+  onPressed: () => _showVehicleDialog(context),
+  backgroundColor: AppTheme.primaryBlue, // tu azul
+  child: const Icon(
+    Icons.add,
+    color: Colors.white, // 👈 AQUÍ está el cambio
+  ),
+),
     );
   }
 }
