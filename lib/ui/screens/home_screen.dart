@@ -1,11 +1,11 @@
 //Hoja de ruta (Pantalla conductor)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:go_router/go_router.dart';
 
+// RUTAS RELATIVAS QUE SÍ RECONOCE TU ENTORNO
 import '../../models/order_model.dart';
 import '../../models/vehicle_model.dart';
 import '../../providers/order_provider.dart';
@@ -13,8 +13,6 @@ import '../../providers/vehicle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/connectivity_banner.dart';
 import 'login_screen.dart';
-import 'map_screen.dart';
-import 'order_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,63 +33,68 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrderProvider>().startListening(isAdmin: false);
+      context.read<VehicleProvider>().fetchVehicles();
       _loadCurrentUser();
     });
   }
 
   Future<void> _loadCurrentUser() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (doc.exists && mounted) {
-      final data = doc.data()!;
-      setState(() {
-        _currentUserName = data['fullName'] as String?;
-        _currentUserRut = data['rut'] as String?;
-        _currentUserEmail = data['correo'] as String?;
-      });
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists && mounted) {
+          setState(() {
+            _currentUserName = doc.data()?['name'] ?? 'Conductor';
+            _currentUserRut = doc.data()?['rut'] ?? '';
+            _currentUserEmail = doc.data()?['email'] ?? '';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al cargar datos de usuario: $e');
     }
-  }
-
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
-    await launchUrl(launchUri);
   }
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos el tema dinámico según el rol
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final orderProvider = context.watch<OrderProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
+    final isHighContrast = colorScheme.surface == Colors.white;
+
+    final List<Widget> tabs = [
+      _buildHojaRutaTab(context, orderProvider, isHighContrast),
+      _buildEstadisticasTab(context, orderProvider),
+      _buildPerfilTab(context, isHighContrast),
+    ];
 
     return Scaffold(
-      backgroundColor: colorScheme.surface == Colors.white ? const Color(0xFFF2F2F2) : Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: colorScheme.primary, // Adaptativo (Negro en Conductor, Azul en Admin)
-        elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Icon(
-            Icons.local_shipping,
-            color: colorScheme.secondary, // Adaptativo (Azul intenso o Naranja)
-            size: 28,
-          ),
-        ),
         title: Text(
-          'Qúbico Conductor',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: colorScheme.onPrimary,
-          ),
+          _currentIndex == 0 
+              ? 'Mi Hoja de Ruta' 
+              : _currentIndex == 1 
+                  ? 'Estadísticas del Día' 
+                  : 'Mi Perfil',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-          actions: [
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
             onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                context.go('/login');
+              try {
+                await FirebaseAuth.instance.signOut();
+                if (mounted) context.go('/login');
+              } catch (e) {
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                }
               }
             },
           ),
@@ -100,771 +103,239 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           const ConnectivityBanner(),
-          _buildConductorHeader(),
-          Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: [
-                _buildRutaTab(context),
-                _buildCargasTab(context),
-                _buildPerfilTab(context),
-              ],
-            ),
-          ),
+          Expanded(child: tabs[_currentIndex]),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: colorScheme.secondary,
-        unselectedItemColor: colorScheme.surface == Colors.white ? Colors.black54 : Colors.grey,
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 13, // Ligeramente más grande para lectura en exteriores
-        ),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        selectedItemColor: isHighContrast ? Colors.black : AppTheme.primaryBlue,
+        unselectedItemColor: Colors.grey,
+        backgroundColor: colorScheme.surface,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.location_on, size: 26), label: 'Ruta'),
-          BottomNavigationBarItem(icon: Icon(Icons.inventory_2, size: 26), label: 'Cargas'),
-          BottomNavigationBarItem(icon: Icon(Icons.person, size: 26), label: 'Perfil'),
+          BottomNavigationBarItem(icon: Icon(Icons.route), label: 'Ruta'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Reporte'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),
     );
   }
 
-  Widget _buildConductorHeader() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    if (uid == null) {
-      return const SizedBox.shrink();
+  Widget _buildHojaRutaTab(BuildContext context, OrderProvider orderProvider, bool isHighContrast) {
+    if (orderProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
 
-    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
-      builder: (context, snapshot) {
-        String fullName = 'Usuario sin nombre registrado';
-        String role = 'Conductor';
-
-        if (snapshot.hasData && snapshot.data!.exists) {
-          final data = snapshot.data!.data();
-
-          if (data != null) {
-            fullName = (data['fullName']?.toString().trim().isNotEmpty ?? false)
-                ? data['fullName']
-                : 'Usuario sin nombre registrado';
-
-            role = data['rol'] ?? 'Conductor';
-          }
-        }
-
-        final initials = fullName
-            .split(' ')
-            .where((name) => name.isNotEmpty)
-            .take(2)
-            .map((name) => name[0].toUpperCase())
-            .join();
-
-        final firstName = fullName.split(' ').first;
-
-        return Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
-                child: Text(
-                  initials.isNotEmpty ? initials : 'U',
-                  style: const TextStyle(
-                    color: AppTheme.accentOrange,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '¡Buen viaje, $firstName!',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryBlue,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    role == 'conductor' ? 'Conductor de Ruta' : role,
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // ==================== TABS ====================
-
-  Widget _buildRutaTab(BuildContext context) {
-    return Column(
-      children: [
-        _buildHeader(
-          context,
-          title: 'Hoja de Ruta',
-          subtitleBuilder: (orders) => '${orders.length} paradas programadas',
+    if (orderProvider.orders.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment_turned_in_outlined, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No tienes despachos asignados para hoy.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+            ),
+          ],
         ),
-        Expanded(child: _buildRouteTimeline(context)),
-      ],
-    );
-  }
-
-  Widget _buildCargasTab(BuildContext context) {
-    final provider = context.watch<OrderProvider>();
-    final today = DateTime.now();
-    final todaysOrders = provider.orders
-        .where(
-          (o) =>
-              o.scheduledDate.year == today.year &&
-              o.scheduledDate.month == today.month &&
-              o.scheduledDate.day == today.day,
-        )
-        .toList();
-
-    final vehicleProvider = context.watch<VehicleProvider>();
-    Vehicle assignedVehicle;
-    try {
-      assignedVehicle = vehicleProvider.vehicles.firstWhere(
-        (v) => v.driverName == _currentUserName,
-      );
-    } catch (_) {
-      assignedVehicle = Vehicle(
-        name: 'Sin vehículo asignado',
-        patente: '---',
-        maxWeight: 0.0,
-        driverName: _currentUserName ?? '',
       );
     }
 
-    final activeOrders = todaysOrders.where((o) => o.status != 'Entregado').toList();
-    final totalWeight = activeOrders.fold<double>(0.0, (sum, order) => sum + order.weight);
-    final capacityPercentage = (totalWeight / assignedVehicle.maxWeight).clamp(0.0, 1.0);
+    final sortedOrders = List<Order>.from(orderProvider.orders);
+    sortedOrders.sort((a, b) {
+      if (a.status == 'Pendiente' && b.status != 'Pendiente') return -1;
+      if (a.status != 'Pendiente' && b.status == 'Pendiente') return 1;
+      return 0;
+    });
 
-    final colorScheme = Theme.of(context).colorScheme;
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: sortedOrders.length,
+      itemBuilder: (context, index) {
+        final order = sortedOrders[index];
+        final statusColor = _getStatusColor(order.status);
 
-    return Column(
-      children: [
-        _buildHeader(
-          context,
-          title: 'Mis Cargas',
-          subtitleBuilder: (orders) =>
-              'Carga actual: ${totalWeight.toStringAsFixed(1)} / ${assignedVehicle.maxWeight.toStringAsFixed(1)} kg',
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: colorScheme.surface == Colors.white ? Colors.black38 : Colors.grey[200]!, width: 1.5),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                assignedVehicle.name,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: colorScheme.onSurface,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  assignedVehicle.patente,
-                                  style: TextStyle(
-                                    color: colorScheme.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Icon(
-                            Icons.local_shipping_outlined,
-                            color: colorScheme.primary,
-                            size: 36,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Capacidad Utilizada',
-                            style: TextStyle(
-                              color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            '${(capacityPercentage * 100).toStringAsFixed(1)}%',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: capacityPercentage > 0.9 ? colorScheme.error : colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: capacityPercentage,
-                          minHeight: 14,
-                          backgroundColor: Colors.grey[300],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            capacityPercentage > 0.9
-                                ? colorScheme.error
-                                : capacityPercentage > 0.7
-                                ? colorScheme.secondary
-                                : Colors.green[700]!,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Carga total actual: ${totalWeight.toStringAsFixed(1)} kg. Límite máximo: ${assignedVehicle.maxWeight.toStringAsFixed(1)} kg.',
-                        style: TextStyle(
-                          color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(
+                  color: isHighContrast ? Colors.black : Colors.grey[200]!,
+                  width: isHighContrast ? 1.5 : 1,
                 ),
               ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Text(
-                  'DETALLE DE CARGAS DEL DÍA',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    letterSpacing: 1.2,
-                    color: colorScheme.surface == Colors.white ? Colors.black : Colors.grey,
-                  ),
-                ),
-              ),
-              if (todaysOrders.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text(
-                      'No hay cargas registradas para hoy.',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                )
-              else
-                ...todaysOrders.map((order) => _buildCargoItemCard(context, order)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPerfilTab(BuildContext context) {
-    final provider = context.watch<OrderProvider>();
-    final today = DateTime.now();
-    final todaysOrders = provider.orders
-        .where(
-          (o) =>
-              o.scheduledDate.year == today.year &&
-              o.scheduledDate.month == today.month &&
-              o.scheduledDate.day == today.day,
-        )
-        .toList();
-
-    final deliveredCount = todaysOrders.where((o) => o.status == 'Entregado').length;
-    final inRouteCount = todaysOrders.where((o) => o.status == 'En camino').length;
-    final incidentsCount = todaysOrders.where((o) => o.status == 'Incidencia').length;
-
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      children: [
-        _buildHeader(
-          context,
-          title: 'Mi Perfil',
-          subtitleBuilder: (_) => 'Conductor de Ruta',
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: colorScheme.surface == Colors.white ? Colors.black38 : Colors.grey[200]!, width: 1.5),
-                ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () {
+                  context.push('/order-detail', extra: order);
+                },
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 14.0), // Reducido un poco horizontalmente para evitar desborde
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      CircleAvatar(
-                        radius: 36,
-                        backgroundColor: colorScheme.primary.withOpacity(0.12),
-                        child: Text(
-                          _currentUserName != null && _currentUserName!.isNotEmpty
-                              ? _currentUserName!
-                                  .split(' ')
-                                  .where((w) => w.isNotEmpty)
-                                  .take(2)
-                                  .map((w) => w[0].toUpperCase())
-                                  .join()
-                              : '?',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
+                      Container(
+                        width: 6,
+                        height: 85,
+                        decoration: BoxDecoration(
+                          color: isHighContrast ? Colors.black : statusColor,
+                          borderRadius: BorderRadius.circular(3),
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 10),
+
+                      // El Expanded obliga a los textos a ajustarse y no empujar los íconos fuera de la pantalla
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'ID: ${order.id?.substring(0, 8) ?? 'N/A'}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: (isHighContrast ? Colors.black : statusColor).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    order.status,
+                                    style: TextStyle(
+                                      color: isHighContrast ? Colors.black : statusColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
                             Text(
-                              _currentUserName ?? 'Cargando...',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                                color: colorScheme.onSurface,
-                              ),
+                              'Cliente: ${order.clientId}',
+                              style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w500, fontSize: 13),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'RUT: ${_currentUserRut ?? '-'}',
-                              style: TextStyle(
-                                color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
-                                fontSize: 13,
-                              ),
+                              'Dirección: ${order.address}',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _currentUserEmail ?? '-',
-                              style: TextStyle(
-                                color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
-                                fontSize: 13,
-                              ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'Ventana: ${order.timeWindow}',
+                                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(width: 4), // Espacio mínimo seguro antes de los botones
+
+                      // BOTONES REDISEÑADOS CON PADDING INTERNO OPTIMIZADO CONTRA DESBORDES
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.map_outlined, color: Colors.blueAccent),
+                            iconSize: 26, // Ajuste milimétrico óptimo
+                            constraints: const BoxConstraints(), 
+                            padding: const EdgeInsets.all(6), // Padding interno balanceado
+                            onPressed: () {
+                              context.push('/map', extra: order);
+                            },
+                          ),
+                          const SizedBox(height: 4), // Separación vertical limpia
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right, color: Colors.grey),
+                            iconSize: 28, // Ajuste milimétrico óptimo
+                            constraints: const BoxConstraints(),
+                            padding: const EdgeInsets.all(6), // Padding interno balanceado
+                            onPressed: () {
+                              context.push('/order-detail', extra: order);
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Text(
-                  'RESUMEN OPERATIVO DE HOY',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    letterSpacing: 1.2,
-                    color: colorScheme.surface == Colors.white ? Colors.black : Colors.grey,
-                  ),
-                ),
-              ),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                childAspectRatio: 1.3,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                children: [
-                  _buildStatItem(context, 'Asignadas', '${todaysOrders.length}', Icons.assignment_outlined, Colors.blue[800]!),
-                  _buildStatItem(context, 'Entregadas', '$deliveredCount', Icons.check_circle_outline, Colors.green[700]!),
-                  _buildStatItem(context, 'En Tránsito', '$inRouteCount', Icons.local_shipping_outlined, colorScheme.secondary),
-                  _buildStatItem(context, 'Incidencias', '$incidentsCount', Icons.warning_amber_rounded, colorScheme.error),
-                ],
-              ),
-              const SizedBox(height: 32),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ElevatedButton.icon(
-                  onPressed: () async { // <-- Agrega async
-                    await FirebaseAuth.instance.signOut(); // <-- Agrega esto
-                    if (context.mounted) {
-                      context.go('/login'); // <-- Cambia el Navigator por esto
-                    }
-                  },
-                  icon: const Icon(Icons.logout, color: Colors.white),
-                  label: const Text(
-                    'Cerrar Sesión',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.error,
-                    minimumSize: const Size(double.infinity, 48), // Cumple con los 44px táctiles
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==================== SUB-WIDGETS & BUILDERS ====================
-
-  Widget _buildHeader(
-    BuildContext context, {
-    required String title,
-    required String Function(List<Order>) subtitleBuilder,
-  }) {
-    final provider = context.watch<OrderProvider>();
-    final today = DateTime.now();
-    final todaysOrders = provider.orders
-        .where(
-          (o) =>
-              o.scheduledDate.year == today.year &&
-              o.scheduledDate.month == today.month &&
-              o.scheduledDate.day == today.day,
-        )
-        .toList();
-
-    final List<String> months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    final dateStr = '${today.day} ${months[today.month - 1]}';
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.only(top: 24, left: 24, right: 24, bottom: 24),
-      decoration: BoxDecoration(
-        color: colorScheme.primary, // Cambia dinámicamente
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () async { // <-- Agrega async
-                  await FirebaseAuth.instance.signOut(); // <-- Agrega esto
-                  if (context.mounted) {
-                    context.go('/login'); // <-- Cambia el Navigator por esto
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                  child: Text(
-                    'Cerrar App',
-                    style: TextStyle(color: colorScheme.onPrimary.withOpacity(0.85), fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colorScheme.onPrimary.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Hoy, $dateStr',
-                  style: TextStyle(
-                    color: colorScheme.onPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(
-              color: colorScheme.onPrimary,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitleBuilder(todaysOrders),
-            style: TextStyle(color: colorScheme.onPrimary.withOpacity(0.85), fontSize: 15),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRouteTimeline(BuildContext context) {
-    final provider = context.watch<OrderProvider>();
-    final today = DateTime.now();
-    final todaysOrders = provider.orders
-        .where(
-          (o) =>
-              o.scheduledDate.year == today.year &&
-              o.scheduledDate.month == today.month &&
-              o.scheduledDate.day == today.day,
-        )
-        .toList();
-
-    if (provider.isLoading) return const Center(child: CircularProgressIndicator());
-    if (todaysOrders.isEmpty) {
-      return const Center(
-        child: Text(
-          'No hay paradas hoy.',
-          style: TextStyle(color: Colors.grey, fontSize: 16),
-        ),
-      );
-    }
-
-    int nextOrderIndex = todaysOrders.indexWhere((o) => o.status == 'Pendiente' || o.status == 'En camino');
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 24, left: 16, right: 16, bottom: 24),
-      itemCount: todaysOrders.length,
-      itemBuilder: (context, index) {
-        final order = todaysOrders[index];
-        final isNext = index == nextOrderIndex;
-
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Column(
-                children: [
-                  Container(
-                    width: 18,
-                    height: 18,
-                    margin: const EdgeInsets.only(top: 16),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isNext ? colorScheme.secondary : Colors.grey[400]!,
-                        width: 4,
-                      ),
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (index < todaysOrders.length - 1)
-                    Expanded(
-                      child: Container(width: 2.5, color: Colors.grey[400]),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: _buildOrderCard(context, order, isNext),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildOrderCard(BuildContext context, Order order, bool isNext) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isHighContrast = colorScheme.surface == Colors.white;
+  Widget _buildEstadisticasTab(BuildContext context, OrderProvider orderProvider) {
+    final entregados = orderProvider.orders.where((o) => o.status == 'Entregado').length;
+    final pendientes = orderProvider.orders.where((o) => o.status == 'Pendiente' || o.status == 'En camino').length;
+    final incidencias = orderProvider.orders.where((o) => o.status == 'Incidencia').length;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: isNext ? 4 : 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: isNext
-            ? BorderSide(color: colorScheme.secondary, width: 2.5) // Borde más marcado
-            : BorderSide(color: isHighContrast ? Colors.black26 : Colors.transparent),
-      ),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (isNext)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              decoration: BoxDecoration(
-                color: colorScheme.secondary,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(10),
-                  topRight: Radius.circular(10),
+          const Text(
+            'Resumen de Entregas',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildStatItem(context, 'Entregados', entregados.toString(), Icons.check_circle, Colors.green)),
+              Expanded(child: _buildStatItem(context, 'Pendientes', pendientes.toString(), Icons.schedule, Colors.orange)),
+              Expanded(child: _buildStatItem(context, 'Alertas', incidencias.toString(), Icons.warning, Colors.red)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.grey[200]!),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.analytics_outlined, size: 48, color: Colors.blue),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Rendimiento Diario',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Los datos de tiempos de entrega e incidencias se actualizarán de forma automática conforme se complete la ruta.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'PRÓXIMO DESPACHO',
-                    style: TextStyle(
-                      color: colorScheme.secondary == Colors.black ? Colors.white : Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  const Icon(Icons.navigation, color: Colors.white, size: 16),
-                ],
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        order.clientName.isNotEmpty ? order.clientName : order.clientId,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17, // Legibilidad aumentada
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    _buildStatusBadge(context, order.status),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(Icons.location_on_outlined, size: 18, color: colorScheme.primary),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        order.address,
-                        style: TextStyle(
-                          color: isHighContrast ? Colors.black : Colors.grey[800],
-                          fontSize: 14,
-                          fontWeight: isHighContrast ? FontWeight.w500 : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isHighContrast ? const Color(0xFFEAA100).withOpacity(0.15) : Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: isHighContrast ? Border.all(color: Colors.black45) : null,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.access_time, size: 16, color: isHighContrast ? Colors.black : colorScheme.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        order.timeWindow,
-                        style: TextStyle(
-                          color: isHighContrast ? Colors.black : colorScheme.primary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Botones con altura mínima forzada a 48px para cumplir holgadamente los 44px requeridos
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _makePhoneCall(order.clientPhone),
-                        icon: const Icon(Icons.phone, size: 18),
-                        label: const Text('Llamar'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: colorScheme.onSurface,
-                          side: BorderSide(color: colorScheme.onSurface, width: 2),
-                          backgroundColor: isHighContrast ? Colors.white : Colors.blue[50],
-                          minimumSize: const Size(0, 48), 
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (order.status == 'Entregado' || order.status == 'Incidencia') {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)));
-                          } else if (order.status == 'Pendiente') {
-                            context.read<OrderProvider>().updateOrderStatus(order.id!, 'En camino');
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => MapScreen(selectedOrder: order)));
-                          } else if (order.status == 'En camino') {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)));
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isNext ? colorScheme.secondary : colorScheme.primary,
-                          foregroundColor: colorScheme.onPrimary,
-                          minimumSize: const Size(0, 48),
-                          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: Text(
-                          (order.status == 'Entregado' || order.status == 'Incidencia')
-                              ? 'Ver Resumen'
-                              : (order.status == 'Pendiente')
-                              ? 'Iniciar Entrega'
-                              : 'Terminar Entrega',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ),
           ),
         ],
@@ -872,147 +343,125 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCargoItemCard(BuildContext context, Order order) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isHighContrast = colorScheme.surface == Colors.white;
+  Widget _buildPerfilTab(BuildContext context, bool isHighContrast) {
+    final vehicleProvider = context.watch<VehicleProvider>();
     
-    Color badgeColor = colorScheme.primary;
-    if (order.loadType == 'Construcción') badgeColor = isHighContrast ? Colors.black : AppTheme.accentOrange;
-    if (order.loadType == 'Eventos') badgeColor = isHighContrast ? Colors.black : Colors.purple;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: isHighContrast ? Colors.black45 : Colors.grey[200]!, width: isHighContrast ? 1.5 : 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Carga #${order.id}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: badgeColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(6),
-                    border: isHighContrast ? Border.all(color: Colors.black) : null,
-                  ),
-                  child: Text(
-                    order.loadType,
-                    style: TextStyle(
-                      color: isHighContrast ? Colors.black : badgeColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.fitness_center_outlined, size: 18, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Text('Peso: ', style: TextStyle(color: isHighContrast ? Colors.black87 : Colors.grey)),
-                Text(
-                  '${order.weight} kg',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.straighten_outlined, size: 18, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Text('Dim: ', style: TextStyle(color: isHighContrast ? Colors.black87 : Colors.grey)),
-                Text(
-                  '${order.length} x ${order.width} x ${order.height} m',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(Icons.location_on_outlined, size: 18, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    order.address,
-                    style: TextStyle(
-                      color: isHighContrast ? Colors.black : Colors.grey[700], 
-                      fontSize: 13,
-                      fontWeight: isHighContrast ? FontWeight.w500 : FontWeight.normal,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(BuildContext context, String status) {
-    final isHighContrast = Theme.of(context).colorScheme.surface == Colors.white;
-    Color badgeColor;
-    switch (status) {
-      case 'Entregado':
-        badgeColor = Colors.green[800]!;
-        break;
-      case 'Incidencia':
-        badgeColor = const Color(0xFFB00020);
-        break;
-      case 'En camino':
-        badgeColor = isHighContrast ? Colors.black : AppTheme.accentOrange;
-        break;
-      default:
-        badgeColor = Colors.grey[800]!;
+    Vehicle? myVehicle;
+    if (_currentUserName != null && vehicleProvider.vehicles.isNotEmpty) {
+      final matches = vehicleProvider.vehicles.where(
+        (v) => v.driverName.toLowerCase() == _currentUserName!.toLowerCase()
+      );
+      if (matches.isNotEmpty) {
+        myVehicle = matches.first;
+      }
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: badgeColor.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: badgeColor, width: 1),
-      ),
-      child: Text(
-        status.toUpperCase(),
-        style: TextStyle(
-          color: badgeColor,
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-        ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: isHighContrast ? Colors.black45 : Colors.grey[200]!),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: (isHighContrast ? Colors.black : AppTheme.primaryBlue).withOpacity(0.1),
+                    child: Icon(Icons.person, size: 32, color: isHighContrast ? Colors.black : AppTheme.primaryBlue),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _currentUserName ?? 'Cargando...',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('RUT: ${_currentUserRut ?? 'N/A'}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                        Text('Email: ${_currentUserEmail ?? 'N/A'}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: isHighContrast ? Colors.black45 : Colors.grey[200]!),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.local_shipping, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text('Vehículo Asignado', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  if (vehicleProvider.isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (myVehicle == null)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12.0),
+                        child: Text(
+                          'No tienes un vehículo vinculado para hoy.',
+                          style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: [
+                        _buildVehicleRow('Nombre:', myVehicle.name),
+                        _buildVehicleRow('Patente:', myVehicle.patente),
+                        _buildVehicleRow('Capacidad Máx:', '${myVehicle.maxWeight} kg'),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatItem(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _buildVehicleRow(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: valueColor)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(BuildContext context, String label, String value, IconData icon, Color color) {
     final colorScheme = Theme.of(context).colorScheme;
     final isHighContrast = colorScheme.surface == Colors.white;
 
@@ -1031,11 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-                color: colorScheme.onSurface,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: colorScheme.onSurface),
             ),
             const SizedBox(height: 2),
             Text(
@@ -1045,11 +490,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 12,
                 fontWeight: isHighContrast ? FontWeight.bold : FontWeight.normal,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
     );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Pendiente': return Colors.orange;
+      case 'En camino': return Colors.purple;
+      case 'Entregado': return Colors.green;
+      case 'Incidencia': return Colors.red;
+      default: return Colors.grey;
+    }
   }
 }
