@@ -186,42 +186,48 @@ void _editOrder(Order order) {
 
         return Container(
           color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 26,
+                radius: 24,
                 backgroundColor: AppTheme.accentOrange.withOpacity(0.1),
                 child: Text(
                   initials.isNotEmpty ? initials : 'U',
                   style: const TextStyle(
                     color: AppTheme.accentOrange,
                     fontWeight: FontWeight.bold,
-                    fontSize: 20,
+                    fontSize: 18,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    fullName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.black,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      fullName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.black,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    role == 'admin' ? 'Administrador' : role,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
+                    Text(
+                      role == 'admin' ? 'Administrador' : role,
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
