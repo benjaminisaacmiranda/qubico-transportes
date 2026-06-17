@@ -448,15 +448,86 @@ Widget build(BuildContext context) {
                         Validators.validateRequired(v, 'El nombre del cliente'),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _rutController,
-                    decoration: const InputDecoration(
-                      labelText: 'RUT *',
-                      hintText: 'Ej: 12345678-9',
-                    ),
-                    validator: Validators.validateRut,
-                    readOnly: !_isManualClient,
-                  ),
+                  // RUT
+TextFormField(
+  controller: _rutController,
+  keyboardType: TextInputType.text,
+  inputFormatters: [
+    FilteringTextInputFormatter.allow(RegExp(r'[0-9kK]')),
+    LengthLimitingTextInputFormatter(9),
+  ],
+  onChanged: (value) {
+    final limpio = value.replaceAll('-', '');
+
+    if (limpio.length >= 2) {
+      final nuevo =
+          '${limpio.substring(0, limpio.length - 1)}-${limpio.substring(limpio.length - 1)}';
+
+      if (nuevo != _rutController.text) {
+        _rutController.value = TextEditingValue(
+          text: nuevo,
+          selection: TextSelection.collapsed(
+            offset: nuevo.length,
+          ),
+        );
+      }
+    }
+  },
+  decoration: const InputDecoration(
+    labelText: 'RUT *',
+    hintText: '12345678-5',
+  ),
+  validator: (value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Ingrese un RUT';
+    }
+
+    final rut = value.trim().toUpperCase();
+
+    if (!rut.contains('-')) {
+      return 'El RUT debe incluir guion';
+    }
+
+    final partes = rut.split('-');
+
+    if (partes.length != 2) {
+      return 'Formato inválido';
+    }
+
+    final cuerpo = partes[0];
+    final dvIngresado = partes[1];
+
+    if (cuerpo.length < 7 || cuerpo.length > 8) {
+      return 'RUT inválido';
+    }
+
+    int suma = 0;
+    int multiplicador = 2;
+
+    for (int i = cuerpo.length - 1; i >= 0; i--) {
+      suma += int.parse(cuerpo[i]) * multiplicador;
+      multiplicador = multiplicador == 7 ? 2 : multiplicador + 1;
+    }
+
+    final resto = 11 - (suma % 11);
+
+    String dvCorrecto;
+
+    if (resto == 11) {
+      dvCorrecto = '0';
+    } else if (resto == 10) {
+      dvCorrecto = 'K';
+    } else {
+      dvCorrecto = resto.toString();
+    }
+
+    if (dvIngresado != dvCorrecto) {
+      return 'RUT no válido';
+    }
+
+    return null;
+  },
+),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phoneController,
@@ -602,13 +673,16 @@ Widget build(BuildContext context) {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
-                    controller: _weightController,
-                    decoration: const InputDecoration(
-                      labelText: 'Peso de la Carga (kg) *',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => Validators.validateRequired(v, 'El peso'),
-                  ),
+  controller: _weightController,
+  decoration: const InputDecoration(
+    labelText: 'Peso de la Carga (kg) *',
+  ),
+  keyboardType: TextInputType.number,
+  onChanged: (value) {
+    setState(() {}); // 👈 refresca el filtro
+  },
+  validator: (v) => Validators.validateRequired(v, 'El peso'),
+),
                   const SizedBox(height: 12),
                   const Text(
                     'Dimensiones (Opcional - cm)',
@@ -683,99 +757,114 @@ Widget build(BuildContext context) {
                     ],
                   ),
                   const Divider(height: 24),
-                  // ── Selector de conductor ──────────────────────
-                  StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .where('rol', isEqualTo: 'conductor')
-                        .where('isActive', isEqualTo: true)
-                        .snapshots(),
-                    builder: (context, snap) {
-                      final conductores = (snap.data?.docs ?? [])
-                          .where((doc) =>
-                              !busyDriverIds.contains(doc.id) ||
-                              doc.id == _selectedDriverId)
-                          .toList();
-                      return DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        value: _selectedDriverId,
-                        decoration: const InputDecoration(
-                          labelText: 'Conductor Asignado *',
-                          prefixIcon: Icon(Icons.drive_eta_outlined),
-                        ),
-                        items: conductores.map((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          return DropdownMenuItem<String>(
-                            value: doc.id,
-                            child: Text(
-                              data['fullName'] ?? 'Sin nombre',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (uid) {
-                          if (uid == null) return;
-                          final doc = conductores.firstWhere((d) => d.id == uid);
-                          final data = doc.data() as Map<String, dynamic>;
-                          setState(() {
-                            _selectedDriverId = uid;
-                            _selectedDriverName = data['fullName'] ?? '';
-                          });
-                        },
-                        validator: (v) => v == null ? 'Seleccione un conductor' : null,
-                      );
-                    },
+         
+                  
+// ── Selector de vehículo ───────────────────────
+Builder(
+  builder: (context) {
+    final peso = double.tryParse(_weightController.text) ?? 0;
+
+    final vehiculosFiltrados = vehicles
+        .where((v) => v.maxWeight >= peso)
+        .toList();
+
+    if (vehicles.isEmpty) {
+      return const Text(
+        'No hay vehículos registrados. Agregue uno en Ajustes > Gestión de Flota.',
+        style: TextStyle(color: Colors.red, fontSize: 13),
+      );
+    }
+
+    if (vehiculosFiltrados.isEmpty) {
+      return const Text(
+        'No hay vehículos disponibles para ese peso.',
+        style: TextStyle(color: Colors.red, fontSize: 13),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<Vehicle>(
+          isExpanded: true,
+          value: vehiculosFiltrados.contains(_selectedVehicle)
+              ? _selectedVehicle
+              : null,
+          items: vehiculosFiltrados
+              .map(
+                (v) => DropdownMenuItem<Vehicle>(
+                  value: v,
+                  child: Text(
+                    '${v.name} [${v.patente}] (Max: ${v.maxWeight} kg)',
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 12),
-                  // ── Selector de vehículo ───────────────────────
-                  if (vehicles.isEmpty)
-                    const Text(
-                      'No hay vehículos registrados. Agregue uno en Ajustes > Gestión de Flota.',
-                      style: TextStyle(color: Colors.red, fontSize: 13),
-                    )
-                  else
-                    DropdownButtonFormField<Vehicle>(
-                      isExpanded: true,
-                      value: _selectedVehicle,
-                      items: vehicles
-                          .map(
-                            (v) => DropdownMenuItem(
-                              value: v,
-                              child: Text(
-                                '${v.name} [${v.patente}] (Max: ${v.maxWeight} kg)',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedVehicle = v!),
-                      decoration: const InputDecoration(
-                        labelText: 'Vehículo *',
-                        prefixIcon: Icon(Icons.local_shipping_outlined),
-                      ),
-                      validator: (v) => v == null ? 'Requerido' : null,
-                    ),
+                ),
+              )
+              .toList(),
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() {
+              _selectedVehicle = v;
+              _selectedDriverName = v.driverName;
+            });
+          },
+          decoration: const InputDecoration(
+            labelText: 'Vehículo *',
+            prefixIcon: Icon(Icons.local_shipping_outlined),
+          ),
+          validator: (v) => v == null ? 'Requerido' : null,
+        ),
+
+        const SizedBox(height: 10),
+
+        if (_selectedDriverName != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.person_outline),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Conductor asignado: $_selectedDriverName',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  },
+),
+
+const SizedBox(height: 24),
+
+ElevatedButton.icon(
+  onPressed: _saveOrder,
+  icon: const Icon(Icons.save_outlined, color: Colors.white),
+  label: const Text(
+    'GUARDAR DESPACHO',
+    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1),
+  ),
+  style: ElevatedButton.styleFrom(
+    minimumSize: const Size(double.infinity, 50),
+    backgroundColor: AppTheme.accentOrange,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+  ),
+),
+
+const SizedBox(height: 32),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _saveOrder,
-            icon: const Icon(Icons.save_outlined, color: Colors.white),
-            label: const Text(
-              'GUARDAR DESPACHO',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1),
-            ),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 50),
-              backgroundColor: AppTheme.accentOrange,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
         ],
       ),
     );
