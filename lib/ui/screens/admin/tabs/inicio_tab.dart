@@ -21,27 +21,29 @@ class InicioTab extends StatelessWidget {
       return orderProvider.getPunctualityStatus(o).contains('Atrasado');
     }).toList();
 
+    final isSmallScreen = MediaQuery.of(context).size.width < 380; //definimos que es una pantalla pequeña
+
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isSmallScreen ? 16 : 20), //ajustamos el padding para pantallas pequeñas
       children: [
-        const Text(
+        Text(
           'Resumen de Operaciones',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: isSmallScreen ? 20 : 22, 
             fontWeight: FontWeight.bold,
             color: Colors.black87,
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: isSmallScreen ? 16 : 20,),
         
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.25,
+          crossAxisSpacing:  isSmallScreen ? 12 : 16,
+          mainAxisSpacing:  isSmallScreen ? 12 : 16,
+          childAspectRatio: isSmallScreen ? 1.1 : 1.25,
           children: [
             _buildResumenCard(
               icon: Icons.inventory_2_rounded,
@@ -252,7 +254,7 @@ class InicioTab extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -261,15 +263,15 @@ class InicioTab extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: isAlert ? Colors.white.withOpacity(0.2) : primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   icon,
                   color: isAlert ? Colors.white : primaryColor,
-                  size: 20,
+                  size: 18,
                 ),
               ),
             ],
@@ -277,19 +279,22 @@ class InicioTab extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: isAlert ? Colors.white : Colors.black87,
-                  height: 1.2,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    color: isAlert ? Colors.white : Colors.black87,
+                    height: 1.1,
+                  ),
                 ),
               ),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: isAlert ? Colors.white70 : Colors.grey.shade600,
                 ),
