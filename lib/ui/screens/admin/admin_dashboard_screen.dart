@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:go_router/go_router.dart';
@@ -114,6 +115,7 @@ void _editOrder(Order order) {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
+          HapticFeedback.selectionClick();
           setState(() {
             _currentIndex = index;
           });
@@ -186,7 +188,7 @@ void _editOrder(Order order) {
 
         return Container(
           color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               CircleAvatar(

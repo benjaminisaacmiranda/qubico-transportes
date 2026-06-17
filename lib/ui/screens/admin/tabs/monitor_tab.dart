@@ -31,6 +31,7 @@ class MonitorTab extends StatelessWidget {
 
       return ListView(
         padding: const EdgeInsets.all(20),
+        physics: const BouncingScrollPhysics(),
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

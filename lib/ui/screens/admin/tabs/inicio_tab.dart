@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -21,60 +22,72 @@ class InicioTab extends StatelessWidget {
       return orderProvider.getPunctualityStatus(o).contains('Atrasado');
     }).toList();
 
-    final isSmallScreen = MediaQuery.of(context).size.width < 380; //definimos que es una pantalla pequeña
+    final isSmallScreen = MediaQuery.of(context).size.width < 380;
 
     return ListView(
-      padding: EdgeInsets.all(isSmallScreen ? 16 : 20), //ajustamos el padding para pantallas pequeñas
+      padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
+      physics: const BouncingScrollPhysics(),
       children: [
         Text(
           'Resumen de Operaciones',
           style: TextStyle(
-            fontSize: isSmallScreen ? 20 : 22, 
+            fontSize: isSmallScreen ? 20 : 22,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
             letterSpacing: -0.5,
           ),
         ),
-        SizedBox(height: isSmallScreen ? 16 : 20,),
+        SizedBox(height: isSmallScreen ? 16 : 20),
         
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing:  isSmallScreen ? 12 : 16,
-          mainAxisSpacing:  isSmallScreen ? 12 : 16,
-          childAspectRatio: isSmallScreen ? 1.1 : 1.25,
-          children: [
-            _buildResumenCard(
-              icon: Icons.inventory_2_rounded,
-              label: 'Total Despachos',
-              value: total.toString(),
-              primaryColor: AppTheme.primaryBlue,
-              isAlert: false,
-            ),
-            _buildResumenCard(
-              icon: Icons.check_circle_rounded,
-              label: 'Entregas Exitosas',
-              value: entregados.toString(),
-              primaryColor: const Color(0xFF137333), 
-              isAlert: false,
-            ),
-            _buildResumenCard(
-              icon: Icons.local_shipping_rounded,
-              label: 'En Ruta',
-              value: enRuta.toString(),
-              primaryColor: AppTheme.accentOrange,
-              isAlert: false,
-            ),
-            _buildResumenCard(
-              icon: Icons.warning_rounded,
-              label: 'Incidencias',
-              value: incidencias.toString(),
-              primaryColor: AppTheme.errorColor, 
-              isAlert: incidencias > 0, 
-            ),
-          ],
-        ),
+        if (orderProvider.isLoading && total == 0)
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: isSmallScreen ? 12 : 16,
+            mainAxisSpacing: isSmallScreen ? 12 : 16,
+            childAspectRatio: isSmallScreen ? 1.1 : 1.25,
+            children: List.generate(4, (index) => _buildSkeletonKPI()),
+          )
+        else
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: isSmallScreen ? 12 : 16,
+            mainAxisSpacing: isSmallScreen ? 12 : 16,
+            childAspectRatio: isSmallScreen ? 1.1 : 1.25,
+            children: [
+              _buildResumenCard(
+                icon: Icons.inventory_2_rounded,
+                label: 'Total Despachos',
+                value: total.toString(),
+                primaryColor: AppTheme.primaryBlue,
+                isAlert: false,
+              ),
+              _buildResumenCard(
+                icon: Icons.check_circle_rounded,
+                label: 'Entregas Exitosas',
+                value: entregados.toString(),
+                primaryColor: const Color(0xFF137333), 
+                isAlert: false,
+              ),
+              _buildResumenCard(
+                icon: Icons.local_shipping_rounded,
+                label: 'En Ruta',
+                value: enRuta.toString(),
+                primaryColor: AppTheme.accentOrange,
+                isAlert: false,
+              ),
+              _buildResumenCard(
+                icon: Icons.warning_rounded,
+                label: 'Incidencias',
+                value: incidencias.toString(),
+                primaryColor: AppTheme.errorColor, 
+                isAlert: incidencias > 0, 
+              ),
+            ],
+          ),
         
         const SizedBox(height: 32),
 
@@ -238,68 +251,122 @@ class InicioTab extends StatelessWidget {
     required Color primaryColor,
     required bool isAlert,
   }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => HapticFeedback.lightImpact(),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isAlert ? AppTheme.errorColor : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isAlert ? AppTheme.errorColor : Colors.grey.shade200,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: primaryColor.withOpacity(0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isAlert ? Colors.white.withOpacity(0.2) : primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: isAlert ? Colors.white : primaryColor,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: isAlert ? Colors.white : Colors.black87,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isAlert ? Colors.white70 : Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonKPI() {
     return Container(
       decoration: BoxDecoration(
-        color: isAlert ? AppTheme.errorColor : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isAlert ? AppTheme.errorColor : Colors.grey.shade200,
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: primaryColor.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       padding: const EdgeInsets.all(12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: isAlert ? Colors.white.withOpacity(0.2) : primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  icon,
-                  color: isAlert ? Colors.white : primaryColor,
-                  size: 18,
-                ),
-              ),
-            ],
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: isAlert ? Colors.white : Colors.black87,
-                    height: 1.1,
-                  ),
+              Container(
+                width: 40,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isAlert ? Colors.white70 : Colors.grey.shade600,
+              const SizedBox(height: 8),
+              Container(
+                width: 80,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

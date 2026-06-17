@@ -171,6 +171,7 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
   Future<void> _saveOrder() async {
     if (_formKey.currentState!.validate()) {
+      HapticFeedback.mediumImpact();
       if (_selectedWindow == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Debe seleccionar una ventana horaria.')),
@@ -280,17 +281,34 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
   @override
 Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: AppTheme.accentOrange),
-            SizedBox(height: 16),
+            const SizedBox(
+              width: 50,
+              height: 50,
+              child: CircularProgressIndicator(
+                color: AppTheme.accentOrange,
+                strokeWidth: 3,
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
-              'Cargando flota y clientes...',
+              'Preparando sistema...',
               style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Cargando flota y clientes',
+              style: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: 13,
               ),
             ),
           ],
@@ -335,11 +353,12 @@ Widget build(BuildContext context) {
       key: _formKey,
       child: ListView(
         padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
+        physics: const BouncingScrollPhysics(),
         children: [
           Text(
             'Nuevo Despacho',
             style: TextStyle(
-              fontSize: isSmallScreen ? 18 : 10,
+              fontSize: isSmallScreen ? 18 : 20,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),

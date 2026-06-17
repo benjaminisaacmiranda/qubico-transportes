@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -88,7 +89,10 @@ class _HistorialTabState extends State<HistorialTab> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: _pickDateRange,
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      _pickDateRange();
+                    },
                     icon: const Icon(Icons.date_range, size: 18),
                     label: Text(
                       _dateRange == null
@@ -126,10 +130,13 @@ class _HistorialTabState extends State<HistorialTab> {
                   ),
                   if (_hasActiveFilters)
                     TextButton.icon(
-                      onPressed: () => setState(() {
-                        _dateRange = null;
-                        _clientFilter = null;
-                      }),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        setState(() {
+                          _dateRange = null;
+                          _clientFilter = null;
+                        });
+                      },
                       icon: const Icon(Icons.clear, size: 18),
                       label: const Text('Limpiar filtros'),
                     ),
@@ -143,6 +150,7 @@ class _HistorialTabState extends State<HistorialTab> {
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      physics: const BouncingScrollPhysics(),
                       itemCount: sortedDates.length,
                       itemBuilder: (context, dateIndex) {
                         final dateStr = sortedDates[dateIndex];
@@ -205,6 +213,7 @@ class _HistorialTabState extends State<HistorialTab> {
                                         size: 22,
                                       ),
                                       onPressed: () async {
+                                        HapticFeedback.mediumImpact();
                                         final path =
                                             await PdfService.generateDailyReport(
                                           ordersForDate,
@@ -233,6 +242,7 @@ class _HistorialTabState extends State<HistorialTab> {
                                         size: 22,
                                       ),
                                       onPressed: () async {
+                                        HapticFeedback.mediumImpact();
                                         final path =
                                             await PdfService.generateCSVReport(
                                           ordersForDate,
