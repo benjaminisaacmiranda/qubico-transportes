@@ -174,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   context.push('/order-detail', extra: order);
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 14.0), // Reducido un poco horizontalmente para evitar desborde
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -186,9 +186,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
 
-                      // El Expanded obliga a los textos a ajustarse y no empujar los íconos fuera de la pantalla
+                      // El bloque de texto principal toma todo el espacio restante disponible de forma elástica
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,10 +196,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'ID: ${order.id?.substring(0, 8) ?? 'N/A'}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                Expanded(
+                                  child: Text(
+                                    'ID: ${order.id?.substring(0, 8) ?? 'N/A'}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
+                                const SizedBox(width: 4),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                   decoration: BoxDecoration(
@@ -221,6 +226,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'Cliente: ${order.clientId}',
                               style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w500, fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -247,33 +254,36 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 4), // Espacio mínimo seguro antes de los botones
+                      
+                      const SizedBox(width: 8),
 
-                      // BOTONES REDISEÑADOS CON PADDING INTERNO OPTIMIZADO CONTRA DESBORDES
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.map_outlined, color: Colors.blueAccent),
-                            iconSize: 26, // Ajuste milimétrico óptimo
-                            constraints: const BoxConstraints(), 
-                            padding: const EdgeInsets.all(6), // Padding interno balanceado
-                            onPressed: () {
-                              context.push('/map', extra: order);
-                            },
-                          ),
-                          const SizedBox(height: 4), // Separación vertical limpia
-                          IconButton(
-                            icon: const Icon(Icons.chevron_right, color: Colors.grey),
-                            iconSize: 28, // Ajuste milimétrico óptimo
-                            constraints: const BoxConstraints(),
-                            padding: const EdgeInsets.all(6), // Padding interno balanceado
-                            onPressed: () {
-                              context.push('/order-detail', extra: order);
-                            },
-                          ),
-                        ],
+                      // Forzamos a la columna de botones a medir exactamente lo que necesitan sus hijos
+                      IntrinsicWidth(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.map_outlined, color: Colors.blueAccent),
+                              iconSize: 28, // Mantenemos tus iconos grandes y cómodos
+                              constraints: const BoxConstraints(minWidth: 40, minHeight: 40), 
+                              padding: EdgeInsets.zero,
+                              onPressed: () {
+                                context.push('/map', extra: order);
+                              },
+                            ),
+                            const SizedBox(height: 6),
+                            IconButton(
+                              icon: const Icon(Icons.chevron_right, color: Colors.grey),
+                              iconSize: 32, // Mantenemos tus iconos grandes y cómodos
+                              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                              padding: EdgeInsets.zero,
+                              onPressed: () {
+                                context.push('/order-detail', extra: order);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
