@@ -329,15 +329,17 @@ Widget build(BuildContext context) {
         .map((o) => o.driverId)
         .toSet();
 
+    final isSmallScreen = MediaQuery.of(context).size.width < 380;
+
     return Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
         children: [
-          const Text(
+          Text(
             'Nuevo Despacho',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: isSmallScreen ? 18 : 10,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -569,7 +571,8 @@ Widget build(BuildContext context) {
                   ),
                   const Divider(height: 24),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedWindow,
+                    isExpanded: true,
+                    value: _selectedWindow,
                     hint: const Text('Seleccione una ventana horaria'),
                     items:
                         [
@@ -591,7 +594,8 @@ Widget build(BuildContext context) {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedLoad,
+                    isExpanded: true,
+                    value: _selectedLoad,
                     items: ['Paquetería', 'Construcción', 'Eventos']
                         .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                         .toList(),
@@ -624,7 +628,10 @@ Widget build(BuildContext context) {
                       Expanded(
                         child: TextFormField(
                           controller: _lengthController,
-                          decoration: const InputDecoration(labelText: 'Largo'),
+                          decoration: InputDecoration(
+                            labelText: 'Largo',
+                            labelStyle: TextStyle(fontSize: isSmallScreen ? 12 : 14),
+                          ),
                           keyboardType: TextInputType.number,
                           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         ),
@@ -633,7 +640,10 @@ Widget build(BuildContext context) {
                       Expanded(
                         child: TextFormField(
                           controller: _widthController,
-                          decoration: const InputDecoration(labelText: 'Ancho'),
+                          decoration: InputDecoration(
+                            labelText: 'Ancho',
+                            labelStyle: TextStyle(fontSize: isSmallScreen ? 12 : 14),
+                          ),
                           keyboardType: TextInputType.number,
                           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         ),
@@ -642,7 +652,10 @@ Widget build(BuildContext context) {
                       Expanded(
                         child: TextFormField(
                           controller: _heightController,
-                          decoration: const InputDecoration(labelText: 'Alto'),
+                          decoration: InputDecoration(
+                            labelText: 'Alto',
+                            labelStyle: TextStyle(fontSize: isSmallScreen ? 12 : 14),
+                          ),
                           keyboardType: TextInputType.number,
                           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         ),
