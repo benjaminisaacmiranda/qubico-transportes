@@ -91,3 +91,46 @@ El código está estructurado bajo los más altos estándares de desarrollo móv
 
 ---
 *Desarrollado para el portafolio de Qúbico Transportes - 2026*
+
+### Librerías y Dependencias
+
+**Principales (Dependencies):**
+* `flutter` (sdk: flutter)
+* `go_router`: ^14.2.0
+* `cupertino_icons`: ^1.0.8
+* `sqflite`: ^2.4.2+1
+* `sqflite_common_ffi`: ^2.3.4+4
+* `path`: ^1.9.1
+* `provider`: ^6.1.5+1
+* `intl`: ^0.20.2
+* `camera`: ^0.12.0+1
+* `signature`: ^6.3.0
+* `path_provider`: ^2.1.5
+* `http`: ^1.6.0
+* `connectivity_plus`: ^7.1.1
+* `flutter_bloc`: ^9.1.1
+* `image_picker`: ^1.2.2
+* `image`: ^4.5.4
+* `pdf`: ^3.12.0
+* `printing`: ^5.14.3
+* `geolocator`: ^14.0.2
+* `encrypt`: ^5.0.3
+* `flutter_map`: ^8.3.0
+* `latlong2`: ^0.9.1
+* `geocoding`: ^4.0.0
+* `url_launcher`: ^6.3.2
+* `firebase_core`: ^4.9.0
+* `firebase_auth`: ^6.5.1
+* `cloud_firestore`: ^6.4.1
+* `fl_chart`: ^0.68.0
+
+**Desarrollo (Dev Dependencies):**
+* `flutter_test` (sdk: flutter)
+* `flutter_lints`: ^6.0.0
+
+### 🔑 Credenciales de Acceso (Firebase / Administración)
+
+Para ingresar a la consola de Firebase del proyecto o realizar pruebas de autenticación con privilegios dentro de la aplicación, puedes utilizar las siguientes credenciales de desarrollo:
+
+* **Correo:** `qubicotrabajo@gmail.com`
+* **Contraseña:** `contrasenalol123plop.`
