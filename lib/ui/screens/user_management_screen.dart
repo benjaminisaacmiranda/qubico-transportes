@@ -490,26 +490,56 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   ? null
                   : () async {
                       if (!formKey.currentState!.validate()) return;
-                      setDialogState(() => isSaving = true);
 
-                      try {
-                        final cred = await FirebaseAuth.instance
-                            .createUserWithEmailAndPassword(
-                              email: emailController.text.trim(),
-                              password: passwordController.text.trim(),
-                            );
-                        final uid = cred.user!.uid;
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(uid)
-                            .set({
-                              'correo': emailController.text.trim(),
-                              'fullName': nameController.text.trim(),
-                              'rut': rutController.text.trim(),
-                              'telefono': phoneController.text.trim(),
-                              'rol': selectedRole,
-                              'isActive': true,
-                            });
+        setDialogState(() => isSaving = true);
+
+        try {
+          final fullName = nameController.text.trim();
+
+          // 🔴 VALIDAR NOMBRE DUPLICADO
+          final snap = await FirebaseFirestore.instance
+              .collection('users')
+              .where('fullName', isEqualTo: fullName)
+              .get();
+
+          if (snap.docs.isNotEmpty) {
+            setDialogState(() => isSaving = false);
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Ese nombre ya está en uso'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+
+          // 1️⃣ Crear en Firebase Auth
+          final cred = await FirebaseAuth.instance
+              .createUserWithEmailAndPassword(
+                email: emailController.text.trim(),
+                password: passwordController.text.trim(),
+              );
+
+          final uid = cred.user!.uid;
+
+          // 2️⃣ Guardar en Firestore
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .set({
+                'correo': emailController.text.trim(),
+                'fullName': fullName,
+                'rut': rutController.text.trim(),
+                'telefono': phoneController.text.trim(),
+                'rol': selectedRole,
+                'isActive': true,
+              });
+
+          //.
+                        // 3️⃣  Guardar también en SQLite local
+                        //     para que Gestión de Flota pueda leer
+                        //     conductores desde UserProvider
                         final appRole = app_models.UserRole.values.firstWhere(
                           (e) => e.toString().split('.').last == selectedRole,
                           orElse: () => app_models.UserRole.staff,

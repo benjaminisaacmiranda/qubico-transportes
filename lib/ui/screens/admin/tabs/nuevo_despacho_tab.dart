@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -61,6 +62,19 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
     });
   }
 
+  Future<String?> getDriverIdByName(String driverName) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .where('fullName', isEqualTo: driverName)
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) return null;
+
+    return snap.docs.first.id;
+  }
+
+  // 🚀 Método que dispara todas las consultas a Firebase
   Future<void> _fetchRequiredData() async {
     try {
       await Future.wait([
@@ -168,13 +182,6 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
         return;
       }
 
-      if (_selectedDriverId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Debe asignar un conductor.')),
-        );
-        return;
-      }
-
       if (_selectedVehicle == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Debe asignar un vehículo.')),
@@ -224,9 +231,11 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
       final order = Order(
         id: _isEditing ? _editingOrder!.id : null,
+
         clientId: _rutController.text.trim().isNotEmpty
             ? _rutController.text.trim()
             : _clientNameController.text.trim(),
+
         clientName: _clientNameController.text.trim(),
         clientPhone: _phoneController.text.trim(),
         address: fullAddress,
@@ -432,14 +441,87 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
                         Validators.validateRequired(v, 'El nombre del cliente'),
                   ),
                   const SizedBox(height: 12),
+                  // RUT
                   TextFormField(
                     controller: _rutController,
+                    keyboardType: TextInputType.text,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9kK]')),
+                      LengthLimitingTextInputFormatter(9),
+                    ],
+                    onChanged: (value) {
+                      final limpio = value.replaceAll('-', '');
+
+                      if (limpio.length >= 2) {
+                        final nuevo =
+                            '${limpio.substring(0, limpio.length - 1)}-${limpio.substring(limpio.length - 1)}';
+
+                        if (nuevo != _rutController.text) {
+                          _rutController.value = TextEditingValue(
+                            text: nuevo,
+                            selection: TextSelection.collapsed(
+                              offset: nuevo.length,
+                            ),
+                          );
+                        }
+                      }
+                    },
                     decoration: const InputDecoration(
                       labelText: 'RUT *',
-                      hintText: 'Ej: 12345678-9',
+                      hintText: '12345678-5',
                     ),
-                    validator: Validators.validateRut,
-                    readOnly: !_isManualClient,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Ingrese un RUT';
+                      }
+
+                      final rut = value.trim().toUpperCase();
+
+                      if (!rut.contains('-')) {
+                        return 'El RUT debe incluir guion';
+                      }
+
+                      final partes = rut.split('-');
+
+                      if (partes.length != 2) {
+                        return 'Formato inválido';
+                      }
+
+                      final cuerpo = partes[0];
+                      final dvIngresado = partes[1];
+
+                      if (cuerpo.length < 7 || cuerpo.length > 8) {
+                        return 'RUT inválido';
+                      }
+
+                      int suma = 0;
+                      int multiplicador = 2;
+
+                      for (int i = cuerpo.length - 1; i >= 0; i--) {
+                        suma += int.parse(cuerpo[i]) * multiplicador;
+                        multiplicador = multiplicador == 7
+                            ? 2
+                            : multiplicador + 1;
+                      }
+
+                      final resto = 11 - (suma % 11);
+
+                      String dvCorrecto;
+
+                      if (resto == 11) {
+                        dvCorrecto = '0';
+                      } else if (resto == 10) {
+                        dvCorrecto = 'K';
+                      } else {
+                        dvCorrecto = resto.toString();
+                      }
+
+                      if (dvIngresado != dvCorrecto) {
+                        return 'RUT no válido';
+                      }
+
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -592,6 +674,9 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
                       labelText: 'Peso de la Carga (kg) *',
                     ),
                     keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      setState(() {}); //
+                    },
                     validator: (v) => Validators.validateRequired(v, 'El peso'),
                   ),
                   const SizedBox(height: 12),
@@ -749,27 +834,124 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
                       ),
                       validator: (v) => v == null ? 'Requerido' : null,
                     ),
+
+                  // ── Selector de vehículo ───────────────────────
+                  Builder(
+                    builder: (context) {
+                      final peso = double.tryParse(_weightController.text) ?? 0;
+
+                      final vehiculosFiltrados = vehicles
+                          .where((v) => v.maxWeight >= peso)
+                          .toList();
+
+                      if (vehicles.isEmpty) {
+                        return const Text(
+                          'No hay vehículos registrados. Agregue uno en Ajustes > Gestión de Flota.',
+                          style: TextStyle(color: Colors.red, fontSize: 13),
+                        );
+                      }
+
+                      if (vehiculosFiltrados.isEmpty) {
+                        return const Text(
+                          'No hay vehículos disponibles para ese peso.',
+                          style: TextStyle(color: Colors.red, fontSize: 13),
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownButtonFormField<Vehicle>(
+                            isExpanded: true,
+                            value: vehiculosFiltrados.contains(_selectedVehicle)
+                                ? _selectedVehicle
+                                : null,
+                            items: vehiculosFiltrados
+                                .map(
+                                  (v) => DropdownMenuItem<Vehicle>(
+                                    value: v,
+                                    child: Text(
+                                      '${v.name} [${v.patente}] (Max: ${v.maxWeight} kg)',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) async {
+                              if (v == null) return;
+
+                              final driverId = await getDriverIdByName(
+                                v.driverName,
+                              );
+
+                              setState(() {
+                                _selectedVehicle = v;
+                                _selectedDriverName = v.driverName;
+                                _selectedDriverId = driverId;
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Vehículo *',
+                              prefixIcon: Icon(Icons.local_shipping_outlined),
+                            ),
+                            validator: (v) => v == null ? 'Requerido' : null,
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          if (_selectedDriverName != null)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.person_outline),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Conductor asignado: $_selectedDriverName',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  ElevatedButton.icon(
+                    onPressed: _saveOrder,
+                    icon: const Icon(Icons.save_outlined, color: Colors.white),
+                    label: const Text(
+                      'GUARDAR DESPACHO',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: AppTheme.accentOrange,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _saveOrder,
-            icon: const Icon(Icons.save_outlined, color: Colors.white),
-            label: const Text(
-              'GUARDAR DESPACHO',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.1),
-            ),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 50),
-              backgroundColor: AppTheme.accentOrange,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
         ],
       ),
     );

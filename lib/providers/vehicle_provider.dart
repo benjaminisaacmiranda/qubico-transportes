@@ -1,12 +1,13 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/vehicle_model.dart';
-import '../services/database_service.dart';
-
-import '../services/connectivity_service.dart';
 
 class VehicleProvider with ChangeNotifier {
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subscription;
+
   List<Vehicle> _vehicles = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -16,25 +17,40 @@ class VehicleProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
 
+  CollectionReference<Map<String, dynamic>> get _collection =>
+      FirebaseFirestore.instance.collection('vehicles');
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
-  Future<void> fetchVehicles() async {
+  void startListening() {
+    _subscription?.cancel();
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    try {
-      final data = await DatabaseService.instance.queryAll('vehicles');
-      _vehicles = data.map((e) => Vehicle.fromMap(e)).toList();
-    } catch (e) {
-      _errorMessage = 'Error al cargar vehículos: $e';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    _subscription = _collection.snapshots().listen(
+      (snapshot) {
+        _vehicles =
+            snapshot.docs.map((doc) => Vehicle.fromFirestore(doc)).toList()
+              ..sort((a, b) => a.name.compareTo(b.name));
+
+        _isLoading = false;
+        notifyListeners();
+      },
+      onError: (e) {
+        debugPrint('Firestore vehicles error: $e');
+        _errorMessage = 'Error al cargar vehiculos: $e';
+        _isLoading = false;
+        notifyListeners();
+      },
+    );
+  }
+
+  Future<void> fetchVehicles() async {
+    startListening();
   }
 
   Future<void> addVehicle(Vehicle vehicle) async {
@@ -43,118 +59,59 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final id = await DatabaseService.instance.insert(
-        'vehicles',
-        vehicle.toMap(),
-      );
-
-      final isConnected = await ConnectivityService().isConnected();
-
-      if (isConnected) {
-        try {
-          await FirebaseFirestore.instance
-              .collection('vehicles')
-              .doc(vehicle.patente)
-              .set({
-                'name': vehicle.name,
-                'patente': vehicle.patente,
-                'maxWeight': vehicle.maxWeight,
-                'driverName': vehicle.driverName,
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-        } catch (e) {
-          debugPrint('Error sincronizando vehículo con Firestore: $e');
-        }
-      }
-
-      final newVehicle = Vehicle(
-        id: id,
-        name: vehicle.name,
-        patente: vehicle.patente,
-        maxWeight: vehicle.maxWeight,
-        driverName: vehicle.driverName,
-      );
-
-      _vehicles.add(newVehicle);
+      await _collection.doc(vehicle.patente).set({
+        'name': vehicle.name,
+        'patente': vehicle.patente,
+        'maxWeight': vehicle.maxWeight,
+        'driverName': vehicle.driverName,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
-      _errorMessage = 'Error al agregar vehículo: $e';
+      _errorMessage = 'Error al agregar vehiculo: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> updateVehicle(Vehicle vehicle) async {
-    if (vehicle.id == null) return;
-
+  Future<void> updateVehicle(Vehicle vehicle, String oldPatente) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await DatabaseService.instance.update(
-        'vehicles',
-        vehicle.toMap(),
-        'id',
-        vehicle.id,
-      );
+      final data = {
+        'name': vehicle.name,
+        'patente': vehicle.patente,
+        'maxWeight': vehicle.maxWeight,
+        'driverName': vehicle.driverName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
 
-      final isConnected = await ConnectivityService().isConnected();
-
-      if (isConnected) {
-        try {
-          await FirebaseFirestore.instance
-              .collection('vehicles')
-              .doc(vehicle.patente)
-              .set({
-                'name': vehicle.name,
-                'patente': vehicle.patente,
-                'maxWeight': vehicle.maxWeight,
-                'driverName': vehicle.driverName,
-                'updatedAt': FieldValue.serverTimestamp(),
-              });
-        } catch (e) {
-          debugPrint('Error sincronizando actualización: $e');
-        }
-      }
-
-      final index = _vehicles.indexWhere((v) => v.id == vehicle.id);
-
-      if (index != -1) {
-        _vehicles[index] = vehicle;
+      if (vehicle.patente != oldPatente) {
+        await _collection.doc(vehicle.patente).set(data);
+        await _collection.doc(oldPatente).delete();
+      } else {
+        await _collection.doc(vehicle.patente).update(data);
       }
     } catch (e) {
-      _errorMessage = 'Error al actualizar vehículo: $e';
+      debugPrint('Error updating vehicle: $e');
+      _errorMessage = 'Error al actualizar vehiculo: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> deleteVehicle(int id, String patente) async {
+  Future<void> deleteVehicle(String patente) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await DatabaseService.instance.delete('vehicles', 'id', id);
-
-      final isConnected = await ConnectivityService().isConnected();
-
-      if (isConnected) {
-        try {
-          await FirebaseFirestore.instance
-              .collection('vehicles')
-              .doc(patente)
-              .delete();
-        } catch (e) {
-          debugPrint('Error eliminando en Firestore: $e');
-        }
-      }
-
-      _vehicles.removeWhere((v) => v.id == id);
+      await _collection.doc(patente).delete();
     } catch (e) {
-      _errorMessage = 'Error al eliminar vehículo: $e';
+      _errorMessage = 'Error al eliminar vehiculo: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -179,5 +136,11 @@ class VehicleProvider with ChangeNotifier {
           v.patente.toLowerCase().contains(lowerQuery) ||
           v.driverName.toLowerCase().contains(lowerQuery);
     }).toList();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }

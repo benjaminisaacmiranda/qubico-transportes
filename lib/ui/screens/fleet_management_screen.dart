@@ -1,15 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/vehicle_model.dart';
 import '../../providers/vehicle_provider.dart';
 import '../theme/app_theme.dart';
 
-class FleetManagementScreen extends StatelessWidget {
+class FleetManagementScreen extends StatefulWidget {
   const FleetManagementScreen({super.key});
 
-  void _showVehicleDialog(BuildContext context, {Vehicle? vehicle}) async {
+  @override
+  State<FleetManagementScreen> createState() => _FleetManagementScreenState();
+}
+
+class _FleetManagementScreenState extends State<FleetManagementScreen> {
+  Future<void> _showVehicleDialog(
+    BuildContext context, {
+    Vehicle? vehicle,
+  }) async {
     List<Map<String, String>> conductores = [];
     bool loadError = false;
 
@@ -56,13 +65,13 @@ class FleetManagementScreen extends StatelessWidget {
       selectedDriverName = null;
     }
 
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
           return AlertDialog(
             title: Text(
-              vehicle == null ? 'Registrar Vehículo' : 'Editar Vehículo',
+              vehicle == null ? 'Registrar Vehiculo' : 'Editar Vehiculo',
             ),
             content: Form(
               key: formKey,
@@ -75,38 +84,74 @@ class FleetManagementScreen extends StatelessWidget {
                       TextFormField(
                         controller: nameController,
                         decoration: const InputDecoration(
-                          labelText: 'Nombre (Ej: Furgón A)',
+                          labelText: 'Nombre (Ej: Furgon A)',
                           prefixIcon: Icon(Icons.local_shipping_outlined),
                         ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Requerido' : null,
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Requerido'
+                            : null,
                       ),
                       const SizedBox(height: 10),
-
                       TextFormField(
                         controller: patenteController,
-                        textCapitalization: TextCapitalization.characters,
                         decoration: const InputDecoration(
                           labelText: 'Patente',
                           prefixIcon: Icon(Icons.numbers_outlined),
+                          hintText: 'AB-CD-12',
                         ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Requerido' : null,
+                        onChanged: (value) {
+                          String text = value
+                              .toUpperCase()
+                              .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+                          if (text.length > 6) {
+                            text = text.substring(0, 6);
+                          }
+
+                          var formatted = '';
+
+                          for (var i = 0; i < text.length; i++) {
+                            if (i == 2 || i == 4) formatted += '-';
+                            formatted += text[i];
+                          }
+
+                          patenteController.value = TextEditingValue(
+                            text: formatted,
+                            selection: TextSelection.collapsed(
+                              offset: formatted.length,
+                            ),
+                          );
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Requerido';
+                          }
+                          if (!RegExp(
+                            r'^[A-Z]{2}-[A-Z]{2}-\d{2}$',
+                          ).hasMatch(value)) {
+                            return 'Formato invalido (AB-CD-12)';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 10),
-
                       TextFormField(
                         controller: weightController,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         decoration: const InputDecoration(
-                          labelText: 'Capacidad Máxima (kg)',
+                          labelText: 'Capacidad Maxima (kg)',
                           prefixIcon: Icon(Icons.scale_outlined),
                         ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Requerido' : null,
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Requerido'
+                            : null,
                       ),
                       const SizedBox(height: 10),
-
                       if (loadError)
                         Container(
                           padding: const EdgeInsets.all(10),
@@ -125,7 +170,7 @@ class FleetManagementScreen extends StatelessWidget {
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'No se pudo cargar la lista de conductores. Verifica tu conexión.',
+                                  'No se pudo cargar la lista de conductores. Verifica tu conexion.',
                                   style: TextStyle(
                                     color: Colors.red,
                                     fontSize: 12,
@@ -157,8 +202,8 @@ class FleetManagementScreen extends StatelessWidget {
                               ? null
                               : conductores
                                     .map(
-                                      (c) => DropdownMenuItem<String>(
-                                        value: c['name'],
+                                      (conductor) => DropdownMenuItem<String>(
+                                        value: conductor['name'],
                                         child: Row(
                                           children: [
                                             const Icon(
@@ -167,7 +212,7 @@ class FleetManagementScreen extends StatelessWidget {
                                               color: AppTheme.accentOrange,
                                             ),
                                             const SizedBox(width: 8),
-                                            Text(c['name']!),
+                                            Text(conductor['name']!),
                                           ],
                                         ),
                                       ),
@@ -175,12 +220,13 @@ class FleetManagementScreen extends StatelessWidget {
                                     .toList(),
                           onChanged: conductores.isEmpty
                               ? null
-                              : (v) => setState(() => selectedDriverName = v),
-                          validator: (v) => v == null || v.isEmpty
+                              : (value) => setDialogState(
+                                  () => selectedDriverName = value,
+                                ),
+                          validator: (value) => value == null || value.isEmpty
                               ? 'Debe asignar un conductor'
                               : null,
                         ),
-
                       if (!loadError && conductores.isEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -200,7 +246,7 @@ class FleetManagementScreen extends StatelessWidget {
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Crea un conductor en Gestión de Usuarios primero.',
+                                  'Crea un conductor en Gestion de Usuarios primero.',
                                   style: TextStyle(fontSize: 12),
                                 ),
                               ),
@@ -215,28 +261,29 @@ class FleetManagementScreen extends StatelessWidget {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('CANCELAR'),
               ),
               ElevatedButton(
                 onPressed: () {
-                  if (formKey.currentState!.validate()) {
-                    final newVehicle = Vehicle(
-                      id: vehicle?.id,
-                      name: nameController.text.trim(),
-                      patente: patenteController.text.trim().toUpperCase(),
-                      maxWeight: double.tryParse(weightController.text) ?? 0.0,
-                      driverName: selectedDriverName ?? '',
-                    );
+                  if (!formKey.currentState!.validate()) return;
 
-                    if (vehicle == null) {
-                      context.read<VehicleProvider>().addVehicle(newVehicle);
-                    } else {
-                      context.read<VehicleProvider>().updateVehicle(newVehicle);
-                    }
+                  final newVehicle = Vehicle(
+                    id: vehicle?.id,
+                    name: nameController.text.trim(),
+                    patente: patenteController.text.trim().toUpperCase(),
+                    maxWeight: double.tryParse(weightController.text) ?? 0.0,
+                    driverName: selectedDriverName ?? '',
+                  );
 
-                    Navigator.pop(context);
+                  final provider = context.read<VehicleProvider>();
+                  if (vehicle == null) {
+                    provider.addVehicle(newVehicle);
+                  } else {
+                    provider.updateVehicle(newVehicle, vehicle.patente);
                   }
+
+                  Navigator.pop(dialogContext);
                 },
                 child: const Text('GUARDAR'),
               ),
@@ -250,12 +297,13 @@ class FleetManagementScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gestión de Flota')),
+      appBar: AppBar(title: const Text('Gestion de Flota')),
       body: Consumer<VehicleProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (provider.vehicles.isEmpty) {
             return Center(
               child: Column(
@@ -268,7 +316,7 @@ class FleetManagementScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No hay vehículos registrados.',
+                    'No hay vehiculos registrados.',
                     style: TextStyle(color: Colors.grey[600], fontSize: 16),
                   ),
                   const SizedBox(height: 8),
@@ -313,7 +361,7 @@ class FleetManagementScreen extends StatelessWidget {
                     ),
                   ),
                   title: Text(
-                    '${vehicle.name}  ·  ${vehicle.patente}',
+                    '${vehicle.name} - ${vehicle.patente}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Column(
@@ -364,7 +412,7 @@ class FleetManagementScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showVehicleDialog(context),
         backgroundColor: AppTheme.primaryBlue,
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
