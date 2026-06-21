@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 
 import '../../services/connectivity_service.dart';
 
-/// RNF-07: indicador visual persistente de conexión/sincronización pendiente.
 class ConnectivityBanner extends StatefulWidget {
   const ConnectivityBanner({super.key});
 

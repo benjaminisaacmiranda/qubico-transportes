@@ -32,9 +32,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     super.dispose();
   }
 
-  // ── helpers ──────────────────────────────────────────────
-
-  /// Icono por rol
   IconData _roleIcon(String rol) {
     switch (rol) {
       case 'conductor':
@@ -46,7 +43,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     }
   }
 
-  /// Color de badge por rol
   Color _roleColor(String rol) {
     switch (rol) {
       case 'conductor':
@@ -58,7 +54,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     }
   }
 
-  /// Label legible por rol
   String _roleLabel(String rol) {
     switch (rol) {
       case 'conductor':
@@ -70,9 +65,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     }
   }
 
-  // ══════════════════════════════════════════════════════
-  // TAB 1 – Gestión de Cuentas
-  // ══════════════════════════════════════════════════════
   Widget _buildAccountsTab() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
@@ -145,7 +137,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _roleColor(rol).withOpacity(0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -175,9 +170,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // TAB 2 – Bitácora de Auditoría
-  // ══════════════════════════════════════════════════════
   Widget _buildAuditTab() {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -195,9 +187,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // DIÁLOGO CREAR USUARIO
-  // ══════════════════════════════════════════════════════
   void _showAddUserDialog() {
     final formKey = GlobalKey<FormState>();
     final rutController = TextEditingController();
@@ -207,8 +196,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     final passwordController = TextEditingController();
     bool obscurePass = true;
     bool isSaving = false;
-
-    // ⚠️ 'conductor' incluido para que aparezca en Gestión de Flota
     String selectedRole = 'conductor';
 
     showDialog(
@@ -231,7 +218,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // RUT
                     TextFormField(
                       controller: rutController,
                       keyboardType: TextInputType.text,
@@ -315,7 +301,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       },
                     ),
                     const SizedBox(height: 10),
-                    // Nombre completo
                     TextFormField(
                       controller: nameController,
                       decoration: const InputDecoration(
@@ -326,8 +311,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                           Validators.validateRequired(v, 'El nombre'),
                     ),
                     const SizedBox(height: 10),
-
-                    // Correo
                     TextFormField(
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -352,8 +335,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       },
                     ),
                     const SizedBox(height: 10),
-
-                    // Teléfono celular
                     TextFormField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
@@ -383,8 +364,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       },
                     ),
                     const SizedBox(height: 10),
-
-                    // Contraseña
                     TextFormField(
                       controller: passwordController,
                       obscureText: obscurePass,
@@ -408,8 +387,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       },
                     ),
                     const SizedBox(height: 10),
-
-                    // ── ROL ──────────────────────────────────────
                     DropdownButtonFormField<String>(
                       value: selectedRole,
                       decoration: const InputDecoration(
@@ -458,8 +435,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       ],
                       onChanged: (v) => setDialogState(() => selectedRole = v!),
                     ),
-
-                    // Aviso informativo para el rol conductor
                     if (selectedRole == 'conductor') ...[
                       const SizedBox(height: 10),
                       Container(
@@ -518,15 +493,12 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       setDialogState(() => isSaving = true);
 
                       try {
-                        // 1️⃣  Crear en Firebase Auth
                         final cred = await FirebaseAuth.instance
                             .createUserWithEmailAndPassword(
                               email: emailController.text.trim(),
                               password: passwordController.text.trim(),
                             );
                         final uid = cred.user!.uid;
-
-                        // 2️⃣  Guardar en Firestore
                         await FirebaseFirestore.instance
                             .collection('users')
                             .doc(uid)
@@ -538,10 +510,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                               'rol': selectedRole,
                               'isActive': true,
                             });
-
-                        // 3️⃣  Guardar también en SQLite local
-                        //     para que Gestión de Flota pueda leer
-                        //     conductores desde UserProvider
                         final appRole = app_models.UserRole.values.firstWhere(
                           (e) => e.toString().split('.').last == selectedRole,
                           orElse: () => app_models.UserRole.staff,
@@ -613,9 +581,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // DIÁLOGO EDITAR USUARIO
-  // ══════════════════════════════════════════════════════
   void _showEditUserDialog(String uid, Map<String, dynamic> data) {
     String selectedRole = data['rol'] as String? ?? 'usuario';
     bool isActive = data['isActive'] as bool? ?? false;
@@ -641,7 +606,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
               children: [
                 Text(
                   data['fullName'] ?? 'Sin nombre',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
                 Text(
                   data['correo'] ?? '',
@@ -659,7 +627,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       value: 'conductor',
                       child: Row(
                         children: [
-                          Icon(Icons.drive_eta, size: 18, color: AppTheme.accentOrange),
+                          Icon(
+                            Icons.drive_eta,
+                            size: 18,
+                            color: AppTheme.accentOrange,
+                          ),
                           SizedBox(width: 8),
                           Text('CONDUCTOR'),
                         ],
@@ -669,7 +641,11 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                       value: 'admin',
                       child: Row(
                         children: [
-                          Icon(Icons.admin_panel_settings, size: 18, color: AppTheme.primaryBlue),
+                          Icon(
+                            Icons.admin_panel_settings,
+                            size: 18,
+                            color: AppTheme.primaryBlue,
+                          ),
                           SizedBox(width: 8),
                           Text('ADMINISTRADOR'),
                         ],
@@ -693,7 +669,9 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Cuenta activa'),
                   subtitle: Text(
-                    isActive ? 'El usuario puede iniciar sesión' : 'Acceso bloqueado',
+                    isActive
+                        ? 'El usuario puede iniciar sesión'
+                        : 'Acceso bloqueado',
                     style: TextStyle(
                       fontSize: 12,
                       color: isActive ? Colors.green : Colors.red,
@@ -716,7 +694,10 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                   ? const SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.save, size: 18),
               label: Text(isSaving ? 'Guardando…' : 'GUARDAR'),
@@ -728,13 +709,18 @@ class _UserManagementScreenState extends State<UserManagementScreen>
                         await FirebaseFirestore.instance
                             .collection('users')
                             .doc(uid)
-                            .update({'rol': selectedRole, 'isActive': isActive});
+                            .update({
+                              'rol': selectedRole,
+                              'isActive': isActive,
+                            });
 
                         if (mounted) {
                           Navigator.pop(dialogContext);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Usuario actualizado correctamente.'),
+                              content: Text(
+                                'Usuario actualizado correctamente.',
+                              ),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -758,9 +744,6 @@ class _UserManagementScreenState extends State<UserManagementScreen>
     );
   }
 
-  // ══════════════════════════════════════════════════════
-  // BUILD
-  // ══════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(

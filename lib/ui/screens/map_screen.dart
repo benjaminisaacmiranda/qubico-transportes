@@ -42,7 +42,6 @@ class _MapScreenState extends State<MapScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Verificar Permisos y Obtener ubicación actual del GPS
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         throw Exception('Los servicios de ubicación están desactivados.');
@@ -77,7 +76,6 @@ class _MapScreenState extends State<MapScreen> {
           )
           .toList();
 
-      // Si se pasa un pedido específico, solo mostramos ese en la ruta
       if (widget.selectedOrder != null) {
         orders = [widget.selectedOrder!];
       }
@@ -85,7 +83,6 @@ class _MapScreenState extends State<MapScreen> {
       final List<Marker> markersList = [];
       final List<ll.LatLng> waypoints = [currentLatLng];
 
-      // Marcador del camión (Ubicación actual)
       markersList.add(
         Marker(
           point: currentLatLng,
@@ -99,11 +96,9 @@ class _MapScreenState extends State<MapScreen> {
         ),
       );
 
-      // 2. Geocodificar las direcciones reales de los pedidos
       for (int i = 0; i < orders.length; i++) {
         final order = orders[i];
         try {
-          // Buscamos la dirección (agregando ciudad y país para más precisión)
           final locations = await locationFromAddress(
             '${order.address}, Santiago, Chile',
           );
@@ -135,10 +130,8 @@ class _MapScreenState extends State<MapScreen> {
         }
       }
 
-      // 3. Calcular la ruta real por las calles usando OSRM (Open Source Routing Machine)
       List<ll.LatLng> polylinePoints = [];
       if (waypoints.length > 1) {
-        // OSRM usa formato lon,lat
         final coordsString = waypoints
             .map((p) => '${p.longitude},${p.latitude}')
             .join(';');
@@ -151,11 +144,9 @@ class _MapScreenState extends State<MapScreen> {
           final data = jsonDecode(response.body);
           if (data['routes'] != null && data['routes'].isNotEmpty) {
             final coords = data['routes'][0]['geometry']['coordinates'] as List;
-            // GeoJSON usa [lon, lat], lo pasamos a LatLng(lat, lon)
             polylinePoints = coords.map((c) => ll.LatLng(c[1], c[0])).toList();
           }
         } else {
-          // Fallback: Líneas rectas si el servidor de rutas falla
           polylinePoints = waypoints;
         }
       }
@@ -174,7 +165,6 @@ class _MapScreenState extends State<MapScreen> {
         _isLoading = false;
       });
 
-      // Centrar el mapa en la posición actual
       _mapController.move(currentLatLng, 13.0);
     } catch (e) {
       setState(() => _isLoading = false);

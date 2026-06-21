@@ -21,9 +21,14 @@ class Validators {
       multiplicador = multiplicador == 7 ? 2 : multiplicador + 1;
     }
     final resto = 11 - (suma % 11);
-    final dvCorrecto = resto == 11 ? '0' : resto == 10 ? 'K' : resto.toString();
+    final dvCorrecto = resto == 11
+        ? '0'
+        : resto == 10
+        ? 'K'
+        : resto.toString();
 
-    if (dvIngresado != dvCorrecto) return 'RUT no válido (dígito verificador incorrecto)';
+    if (dvIngresado != dvCorrecto)
+      return 'RUT no válido (dígito verificador incorrecto)';
     return null;
   }
 
@@ -31,7 +36,6 @@ class Validators {
     if (value == null || value.isEmpty) {
       return 'El teléfono es obligatorio';
     }
-    // RF1: Mobile phone (9 digits)
     final phoneRegex = RegExp(r'^[0-9]{9}$');
     if (!phoneRegex.hasMatch(value)) {
       return 'El teléfono debe tener exactamente 9 dígitos';

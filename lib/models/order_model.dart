@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Order {
-  final String? id; // Firestore document ID (String)
+  final String? id;
   final String clientId;
   final String clientName;
   final String clientPhone;
@@ -14,7 +14,7 @@ class Order {
   final String address;
   final String status;
   final DateTime scheduledDate;
-  final String? driverId; // Firebase Auth UID del conductor
+  final String? driverId;
   final String driverName;
   final String? evidencePath;
   final String? signaturePath;
@@ -62,8 +62,9 @@ class Order {
       'evidencePath': evidencePath,
       'signaturePath': signaturePath,
       'incidentReason': incidentReason,
-      'deliveryTime':
-          deliveryTime != null ? Timestamp.fromDate(deliveryTime!) : null,
+      'deliveryTime': deliveryTime != null
+          ? Timestamp.fromDate(deliveryTime!)
+          : null,
     };
   }
 

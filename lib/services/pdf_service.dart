@@ -19,8 +19,18 @@ class PdfService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('QÚBICO TRANSPORTES', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900, fontSize: 18)),
-                pw.Text('Reporte Diario de Despachos', style: pw.TextStyle(color: PdfColors.grey700)),
+                pw.Text(
+                  'QÚBICO TRANSPORTES',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue900,
+                    fontSize: 18,
+                  ),
+                ),
+                pw.Text(
+                  'Reporte Diario de Despachos',
+                  style: pw.TextStyle(color: PdfColors.grey700),
+                ),
               ],
             ),
             pw.Divider(color: PdfColors.orange800, thickness: 2),
@@ -46,8 +56,14 @@ class PdfService {
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Documento generado automáticamente por Sistema Qúbico', style: const pw.TextStyle(fontSize: 8)),
-                pw.Text('Página ${context.pageNumber} de ${context.pagesCount}', style: const pw.TextStyle(fontSize: 8)),
+                pw.Text(
+                  'Documento generado automáticamente por Sistema Qúbico',
+                  style: const pw.TextStyle(fontSize: 8),
+                ),
+                pw.Text(
+                  'Página ${context.pageNumber} de ${context.pagesCount}',
+                  style: const pw.TextStyle(fontSize: 8),
+                ),
               ],
             ),
           ],
@@ -57,8 +73,7 @@ class PdfService {
 
     final pdfBytes = await pdf.save();
     await Printing.layoutPdf(onLayout: (format) async => pdfBytes);
-    
-    // Save to a local file for the Reports history tab
+
     final directory = await getTemporaryDirectory();
     final sanitizeDate = dateStr.replaceAll('/', '-');
     final file = File('${directory.path}/Reporte_Qubico_$sanitizeDate.pdf');
@@ -66,15 +81,19 @@ class PdfService {
     return file.path;
   }
 
-  static Future<String> generateCSVReport(List<Order> orders, String dateStr) async {
+  static Future<String> generateCSVReport(
+    List<Order> orders,
+    String dateStr,
+  ) async {
     final buffer = StringBuffer();
-    // Cabecera CSV
     buffer.writeln('ID,Cliente,Direccion,Peso,Ventana,Estado,Puntualidad');
     for (var o in orders) {
       final punctuality = _calculatePunctuality(o);
-      buffer.writeln('${o.id},"${o.clientId}","${o.address}",${o.weight},"${o.timeWindow}","${o.status}","$punctuality"');
+      buffer.writeln(
+        '${o.id},"${o.clientId}","${o.address}",${o.weight},"${o.timeWindow}","${o.status}","$punctuality"',
+      );
     }
-    
+
     final directory = await getTemporaryDirectory();
     final sanitizeDate = dateStr.replaceAll('/', '-');
     final file = File('${directory.path}/Reporte_Qubico_$sanitizeDate.csv');
@@ -90,8 +109,6 @@ class PdfService {
     return 'A tiempo';
   }
 
-  /// Minutos de atraso respecto al fin de la ventana horaria. Devuelve null
-  /// si el pedido no ha sido entregado o si fue entregado a tiempo.
   static int? _delayMinutes(Order order) {
     if (order.status != 'Entregado' || order.deliveryTime == null) {
       return null;
@@ -153,7 +170,6 @@ class PdfService {
         ),
         ...orders.map((o) {
           final delay = _delayMinutes(o);
-          // RNF/HU06: resaltar en rojo entregas con más de 15 minutos de atraso.
           final isLate = delay != null && delay > 15;
           final cells = [
             o.id.toString(),
@@ -193,7 +209,9 @@ class PdfService {
   static pw.Widget _buildSummary(List<Order> orders) {
     final delivered = orders.where((o) => o.status == 'Entregado').length;
     final incidents = orders.where((o) => o.status == 'Incidencia').length;
-    final pending = orders.where((o) => o.status == 'Pendiente' || o.status == 'En camino').length;
+    final pending = orders
+        .where((o) => o.status == 'Pendiente' || o.status == 'En camino')
+        .length;
 
     return pw.Container(
       padding: const pw.EdgeInsets.all(10),
@@ -204,7 +222,10 @@ class PdfService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('RESUMEN DE OPERACIÓN', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+          pw.Text(
+            'RESUMEN DE OPERACIÓN',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
+          ),
           pw.SizedBox(height: 5),
           pw.Text('Servicios Completados: $delivered'),
           pw.Text('Incidencias Reportadas: $incidents'),

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
 import 'package:sqflite/sqflite.dart';
 
 class BackupService {
@@ -14,7 +14,6 @@ class BackupService {
       throw Exception('No se encontró la base de datos');
     }
 
-    //qubico_backup_FECHA_HORA.db
     final now = DateTime.now();
 
     final fileName =

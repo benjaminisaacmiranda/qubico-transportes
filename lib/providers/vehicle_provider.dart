@@ -30,7 +30,6 @@ class VehicleProvider with ChangeNotifier {
       final data = await DatabaseService.instance.queryAll('vehicles');
       _vehicles = data.map((e) => Vehicle.fromMap(e)).toList();
     } catch (e) {
-      debugPrint('Error fetching vehicles: $e');
       _errorMessage = 'Error al cargar vehículos: $e';
     } finally {
       _isLoading = false;
@@ -44,13 +43,11 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Siempre guardar localmente
       final id = await DatabaseService.instance.insert(
         'vehicles',
         vehicle.toMap(),
       );
 
-      // Verificar conexión
       final isConnected = await ConnectivityService().isConnected();
 
       if (isConnected) {
@@ -80,7 +77,6 @@ class VehicleProvider with ChangeNotifier {
 
       _vehicles.add(newVehicle);
     } catch (e) {
-      debugPrint('Error adding vehicle: $e');
       _errorMessage = 'Error al agregar vehículo: $e';
     } finally {
       _isLoading = false;
@@ -96,7 +92,6 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Siempre actualizar SQLite
       await DatabaseService.instance.update(
         'vehicles',
         vehicle.toMap(),
@@ -129,7 +124,6 @@ class VehicleProvider with ChangeNotifier {
         _vehicles[index] = vehicle;
       }
     } catch (e) {
-      debugPrint('Error updating vehicle: $e');
       _errorMessage = 'Error al actualizar vehículo: $e';
     } finally {
       _isLoading = false;
@@ -143,7 +137,6 @@ class VehicleProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Siempre eliminar localmente
       await DatabaseService.instance.delete('vehicles', 'id', id);
 
       final isConnected = await ConnectivityService().isConnected();
@@ -161,7 +154,6 @@ class VehicleProvider with ChangeNotifier {
 
       _vehicles.removeWhere((v) => v.id == id);
     } catch (e) {
-      debugPrint('Error deleting vehicle: $e');
       _errorMessage = 'Error al eliminar vehículo: $e';
     } finally {
       _isLoading = false;
@@ -169,17 +161,14 @@ class VehicleProvider with ChangeNotifier {
     }
   }
 
-  /// Filtrar vehículos por conductor
   List<Vehicle> getVehiclesByDriver(String driverName) {
     return _vehicles.where((v) => v.driverName == driverName).toList();
   }
 
-  /// Filtrar vehículos que soporten cierto peso
   List<Vehicle> getVehiclesByMinCapacity(double minWeight) {
     return _vehicles.where((v) => v.maxWeight >= minWeight).toList();
   }
 
-  /// Buscar por nombre, patente o conductor
   List<Vehicle> searchVehicles(String query) {
     if (query.isEmpty) return List.unmodifiable(_vehicles);
 

@@ -17,10 +17,7 @@ import '../../../theme/app_theme.dart';
 class NuevoDespachoTab extends StatefulWidget {
   final VoidCallback onOrderSaved;
 
-  const NuevoDespachoTab({
-    super.key,
-    required this.onOrderSaved,
-  });
+  const NuevoDespachoTab({super.key, required this.onOrderSaved});
 
   @override
   State<NuevoDespachoTab> createState() => NuevoDespachoTabState();
@@ -40,13 +37,9 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
   final _widthController = TextEditingController();
   final _heightController = TextEditingController();
 
-  // FIX: Usamos el objeto Client directamente en lugar del RUT como key,
-  // evitando cualquier re-búsqueda que dependa de rut como identificador.
-  // null = modo manual; objeto Client = cliente seleccionado del listado.
   Client? _selectedClient;
   bool _isManualClient = true;
-  
-  // 🕒 Bandera para controlar la pantalla de carga
+
   bool _isLoading = true;
 
   Vehicle? _selectedVehicle;
@@ -63,27 +56,22 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
   @override
   void initState() {
     super.initState();
-    // 🛑 HOTFIX: Esperar a que el frame termine de construirse antes de llamar al Provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchRequiredData();
     });
   }
 
-  // 🚀 Método que dispara todas las consultas a Firebase
   Future<void> _fetchRequiredData() async {
     try {
-      // Usamos Future.wait para ejecutar todas las consultas en paralelo y ganar velocidad
       await Future.wait([
         context.read<ClientProvider>().fetchClients(),
         context.read<UserProvider>().fetchUsers(),
         context.read<VehicleProvider>().fetchVehicles(),
       ]);
-    } catch (e) {
-      // Manejo silencioso de errores o puedes agregar un log aquí
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false; // Apagamos el ícono de carga
+          _isLoading = false;
         });
       }
     }
@@ -173,7 +161,9 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
     if (_formKey.currentState!.validate()) {
       if (_selectedWindow == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Debe seleccionar una ventana horaria.')),
+          const SnackBar(
+            content: Text('Debe seleccionar una ventana horaria.'),
+          ),
         );
         return;
       }
@@ -227,10 +217,6 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
 
           try {
             await context.read<ClientProvider>().addClient(newClient);
-            // FIX: Re-fetch para asegurar que el cliente recién guardado
-            // pase por fromMap() (con decrypt) antes de aparecer en el dropdown.
-            // Evita mostrar RUT/teléfono encriptados al seleccionar el cliente
-            // inmediatamente después de crearlo en la misma sesión.
             await context.read<ClientProvider>().fetchClients();
           } catch (_) {}
         }
@@ -251,7 +237,9 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
         loadType: _selectedLoad,
         timeWindow: _selectedWindow!,
         status: _isEditing ? _editingOrder!.status : 'Pendiente',
-        scheduledDate: _isEditing ? _editingOrder!.scheduledDate : DateTime.now(),
+        scheduledDate: _isEditing
+            ? _editingOrder!.scheduledDate
+            : DateTime.now(),
         driverId: _selectedDriverId!,
         driverName: _selectedDriverName,
       );
@@ -266,9 +254,11 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_isEditing
-                ? 'Pedido actualizado exitosamente'
-                : 'Pedido registrado y asignado exitosamente'),
+            content: Text(
+              _isEditing
+                  ? 'Pedido actualizado exitosamente'
+                  : 'Pedido registrado y asignado exitosamente',
+            ),
           ),
         );
         _resetForm();
@@ -278,7 +268,7 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
   }
 
   @override
-Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(
         child: Column(
@@ -288,10 +278,7 @@ Widget build(BuildContext context) {
             SizedBox(height: 16),
             Text(
               'Cargando flota y clientes...',
-              style: TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -299,29 +286,23 @@ Widget build(BuildContext context) {
     }
 
     final clients = context.watch<ClientProvider>().clients;
-
-    // Mostrar todos los vehículos que tienen conductor asignado
     final vehicles = context
         .watch<VehicleProvider>()
         .vehicles
         .where((v) => v.driverName.trim().isNotEmpty)
         .toList();
 
-    // 🛑 BUGFIX 2: Sincronizar referencias de memoria para evitar crasheo
     if (_selectedVehicle != null) {
-      final matchedIndex = vehicles.indexWhere((v) => v.patente == _selectedVehicle!.patente);
+      final matchedIndex = vehicles.indexWhere(
+        (v) => v.patente == _selectedVehicle!.patente,
+      );
       if (matchedIndex != -1) {
-        // El vehículo sigue en la lista, actualizamos el puntero de memoria
         _selectedVehicle = vehicles[matchedIndex];
       } else {
-        // El vehículo ya no cumple los requisitos (ej. conductor inactivo), se limpia la selección
         _selectedVehicle = null;
       }
     }
 
-    // HU02.1: conductores con un pedido activo (no Entregado/Anulado) no deben
-    // aparecer disponibles para un nuevo despacho, salvo que sea el conductor
-    // ya asignado al pedido que se está editando actualmente.
     final busyDriverIds = context
         .watch<OrderProvider>()
         .orders
@@ -369,8 +350,6 @@ Widget build(BuildContext context) {
                     ],
                   ),
                   const Divider(height: 24),
-                  // FIX: Dropdown tipado como Client? para trabajar directamente
-                  // con el objeto en memoria — sin re-búsqueda por rut.
                   DropdownButtonFormField<Client>(
                     isExpanded: true,
                     value: _selectedClient,
@@ -403,23 +382,28 @@ Widget build(BuildContext context) {
                           _comunaController.clear();
                         } else {
                           _isManualClient = false;
-                          // Datos directamente del objeto en memoria (ya desencriptados por fromMap)
                           _clientNameController.text = selected.name;
                           _rutController.text = selected.rut;
                           _phoneController.text = selected.phone;
                           _emailController.text = selected.email;
-
-                          // Autocompletar dirección desde billingAddress
                           final address = selected.billingAddress.trim();
                           if (address.isNotEmpty) {
                             final commaIdx = address.lastIndexOf(',');
                             if (commaIdx != -1) {
-                              final streetPart = address.substring(0, commaIdx).trim();
-                              _comunaController.text = address.substring(commaIdx + 1).trim();
+                              final streetPart = address
+                                  .substring(0, commaIdx)
+                                  .trim();
+                              _comunaController.text = address
+                                  .substring(commaIdx + 1)
+                                  .trim();
                               final lastSpaceIdx = streetPart.lastIndexOf(' ');
                               if (lastSpaceIdx != -1) {
-                                _calleController.text = streetPart.substring(0, lastSpaceIdx).trim();
-                                _numeroController.text = streetPart.substring(lastSpaceIdx + 1).trim();
+                                _calleController.text = streetPart
+                                    .substring(0, lastSpaceIdx)
+                                    .trim();
+                                _numeroController.text = streetPart
+                                    .substring(lastSpaceIdx + 1)
+                                    .trim();
                               } else {
                                 _calleController.text = streetPart;
                                 _numeroController.clear();
@@ -473,7 +457,8 @@ Widget build(BuildContext context) {
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
                       if (v.trim().length != 9) return 'Debe tener 9 dígitos';
-                      if (!v.trim().startsWith('9')) return 'Debe comenzar con 9';
+                      if (!v.trim().startsWith('9'))
+                        return 'Debe comenzar con 9';
                       return null;
                     },
                   ),
@@ -626,7 +611,9 @@ Widget build(BuildContext context) {
                           controller: _lengthController,
                           decoration: const InputDecoration(labelText: 'Largo'),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -635,7 +622,9 @@ Widget build(BuildContext context) {
                           controller: _widthController,
                           decoration: const InputDecoration(labelText: 'Ancho'),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -644,7 +633,9 @@ Widget build(BuildContext context) {
                           controller: _heightController,
                           decoration: const InputDecoration(labelText: 'Alto'),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                         ),
                       ),
                     ],
@@ -683,7 +674,6 @@ Widget build(BuildContext context) {
                     ],
                   ),
                   const Divider(height: 24),
-                  // ── Selector de conductor ──────────────────────
                   StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance
                         .collection('users')
@@ -692,9 +682,11 @@ Widget build(BuildContext context) {
                         .snapshots(),
                     builder: (context, snap) {
                       final conductores = (snap.data?.docs ?? [])
-                          .where((doc) =>
-                              !busyDriverIds.contains(doc.id) ||
-                              doc.id == _selectedDriverId)
+                          .where(
+                            (doc) =>
+                                !busyDriverIds.contains(doc.id) ||
+                                doc.id == _selectedDriverId,
+                          )
                           .toList();
                       return DropdownButtonFormField<String>(
                         isExpanded: true,
@@ -715,19 +707,21 @@ Widget build(BuildContext context) {
                         }).toList(),
                         onChanged: (uid) {
                           if (uid == null) return;
-                          final doc = conductores.firstWhere((d) => d.id == uid);
+                          final doc = conductores.firstWhere(
+                            (d) => d.id == uid,
+                          );
                           final data = doc.data() as Map<String, dynamic>;
                           setState(() {
                             _selectedDriverId = uid;
                             _selectedDriverName = data['fullName'] ?? '';
                           });
                         },
-                        validator: (v) => v == null ? 'Seleccione un conductor' : null,
+                        validator: (v) =>
+                            v == null ? 'Seleccione un conductor' : null,
                       );
                     },
                   ),
                   const SizedBox(height: 12),
-                  // ── Selector de vehículo ───────────────────────
                   if (vehicles.isEmpty)
                     const Text(
                       'No hay vehículos registrados. Agregue uno en Ajustes > Gestión de Flota.',

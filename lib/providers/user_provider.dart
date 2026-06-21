@@ -27,7 +27,6 @@ class UserProvider with ChangeNotifier {
       final data = await DatabaseService.instance.queryAll('users');
       _users = data.map((map) => User.fromMap(map)).toList();
     } catch (e) {
-      debugPrint('Error fetching users: $e');
       _errorMessage = 'Error al cargar usuarios: $e';
     } finally {
       _isLoading = false;
@@ -43,7 +42,6 @@ class UserProvider with ChangeNotifier {
     try {
       final userMap = user.toMap();
 
-      // Hash password before storing if provided
       if (password != null && password.isNotEmpty) {
         userMap['password'] = SecurityService.hashPassword(password);
       }
@@ -51,7 +49,6 @@ class UserProvider with ChangeNotifier {
       await DatabaseService.instance.insert('users', userMap);
       await fetchUsers();
     } catch (e) {
-      debugPrint('Error adding user: $e');
       _errorMessage = 'Error al agregar usuario: $e';
       _isLoading = false;
       notifyListeners();
@@ -66,7 +63,6 @@ class UserProvider with ChangeNotifier {
     try {
       final userMap = user.toMap();
 
-      // Hash the new password if provided
       if (newPassword != null && newPassword.isNotEmpty) {
         userMap['password'] = SecurityService.hashPassword(newPassword);
       }
@@ -74,7 +70,6 @@ class UserProvider with ChangeNotifier {
       await DatabaseService.instance.update('users', userMap, 'id', user.id);
       await fetchUsers();
     } catch (e) {
-      debugPrint('Error updating user: $e');
       _errorMessage = 'Error al actualizar usuario: $e';
       _isLoading = false;
       notifyListeners();
@@ -90,7 +85,6 @@ class UserProvider with ChangeNotifier {
       await DatabaseService.instance.delete('users', 'id', id);
       await fetchUsers();
     } catch (e) {
-      debugPrint('Error deleting user: $e');
       _errorMessage = 'Error al eliminar usuario: $e';
       _isLoading = false;
       notifyListeners();
@@ -103,10 +97,14 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      await DatabaseService.instance.update('users', {'is_active': currentStatus ? 0 : 1}, 'id', id);
+      await DatabaseService.instance.update(
+        'users',
+        {'is_active': currentStatus ? 0 : 1},
+        'id',
+        id,
+      );
       await fetchUsers();
     } catch (e) {
-      debugPrint('Error toggling user status: $e');
       _errorMessage = 'Error al cambiar estado del usuario: $e';
       _isLoading = false;
       notifyListeners();

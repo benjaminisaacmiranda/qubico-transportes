@@ -3,7 +3,7 @@ import '../services/security_service.dart';
 class Client {
   final String rut;
   final String name;
-  final String phone; // 9 digits
+  final String phone;
   final String email;
   final String billingAddress;
 
