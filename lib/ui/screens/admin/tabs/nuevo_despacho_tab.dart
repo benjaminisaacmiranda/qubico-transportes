@@ -68,7 +68,17 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
       _fetchRequiredData();
     });
   }
+Future<String?> getDriverIdByName(String driverName) async {
+  final snap = await FirebaseFirestore.instance
+      .collection('users')
+      .where('fullName', isEqualTo: driverName)
+      .limit(1)
+      .get();
 
+  if (snap.docs.isEmpty) return null;
+
+  return snap.docs.first.id;
+}
   // 🚀 Método que dispara todas las consultas a Firebase
   Future<void> _fetchRequiredData() async {
     try {
@@ -178,12 +188,7 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
         return;
       }
 
-      if (_selectedDriverId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Debe asignar un conductor.')),
-        );
-        return;
-      }
+      
 
       if (_selectedVehicle == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,6 +196,7 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
         );
         return;
       }
+
 
       final weight = double.tryParse(_weightController.text) ?? 0.0;
       final maxWeight = _selectedVehicle!.maxWeight;
@@ -237,24 +243,24 @@ class NuevoDespachoTabState extends State<NuevoDespachoTab> {
       }
 
       final order = Order(
-        id: _isEditing ? _editingOrder!.id : null,
-        clientId: _rutController.text.trim().isNotEmpty
-            ? _rutController.text.trim()
-            : _clientNameController.text.trim(),
-        clientName: _clientNameController.text.trim(),
-        clientPhone: _phoneController.text.trim(),
-        address: fullAddress,
-        weight: weight,
-        length: double.tryParse(_lengthController.text) ?? 0.0,
-        width: double.tryParse(_widthController.text) ?? 0.0,
-        height: double.tryParse(_heightController.text) ?? 0.0,
-        loadType: _selectedLoad,
-        timeWindow: _selectedWindow!,
-        status: _isEditing ? _editingOrder!.status : 'Pendiente',
-        scheduledDate: _isEditing ? _editingOrder!.scheduledDate : DateTime.now(),
-        driverId: _selectedDriverId!,
-        driverName: _selectedDriverName,
-      );
+  id: _isEditing ? _editingOrder!.id : null,
+  clientId: _rutController.text.trim().isNotEmpty
+      ? _rutController.text.trim()
+      : _clientNameController.text.trim(),
+  clientName: _clientNameController.text.trim(),
+  clientPhone: _phoneController.text.trim(),
+  address: fullAddress,
+  weight: weight,
+  length: double.tryParse(_lengthController.text) ?? 0.0,
+  width: double.tryParse(_widthController.text) ?? 0.0,
+  height: double.tryParse(_heightController.text) ?? 0.0,
+  loadType: _selectedLoad,
+  timeWindow: _selectedWindow!,
+  status: _isEditing ? _editingOrder!.status : 'Pendiente',
+  scheduledDate: _isEditing ? _editingOrder!.scheduledDate : DateTime.now(),
+  driverId: _selectedDriverId!,
+driverName: _selectedDriverName,
+);
 
       if (!mounted) return;
       if (_isEditing) {
@@ -679,7 +685,7 @@ TextFormField(
   ),
   keyboardType: TextInputType.number,
   onChanged: (value) {
-    setState(() {}); // 👈 refresca el filtro
+    setState(() {}); // 
   },
   validator: (v) => Validators.validateRequired(v, 'El peso'),
 ),
@@ -801,13 +807,17 @@ Builder(
                 ),
               )
               .toList(),
-          onChanged: (v) {
-            if (v == null) return;
-            setState(() {
-              _selectedVehicle = v;
-              _selectedDriverName = v.driverName;
-            });
-          },
+         onChanged: (v) async {
+  if (v == null) return;
+
+  final driverId = await getDriverIdByName(v.driverName);
+
+  setState(() {
+    _selectedVehicle = v;
+    _selectedDriverName = v.driverName;
+    _selectedDriverId = driverId; 
+  });
+},
           decoration: const InputDecoration(
             labelText: 'Vehículo *',
             prefixIcon: Icon(Icons.local_shipping_outlined),
