@@ -9,9 +9,7 @@ import '../theme/app_theme.dart';
 class FleetManagementScreen extends StatelessWidget {
   const FleetManagementScreen({super.key});
 
-  // ── Abre el diálogo cargando conductores desde Firestore ──
   void _showVehicleDialog(BuildContext context, {Vehicle? vehicle}) async {
-    // 1. Fetch conductores desde Firestore antes de abrir el diálogo
     List<Map<String, String>> conductores = [];
     bool loadError = false;
 
@@ -40,7 +38,6 @@ class FleetManagementScreen extends StatelessWidget {
 
     if (!context.mounted) return;
 
-    // 2. Mostrar el diálogo ya con la lista de conductores lista
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: vehicle?.name ?? '');
     final patenteController = TextEditingController(
@@ -50,12 +47,10 @@ class FleetManagementScreen extends StatelessWidget {
       text: vehicle?.maxWeight.toString() ?? '',
     );
 
-    // Intentar pre-seleccionar el conductor actual del vehículo
     String? selectedDriverName = vehicle?.driverName.isNotEmpty == true
         ? vehicle!.driverName
         : null;
 
-    // Si el nombre guardado no está en la lista (conductor eliminado), limpiar
     if (selectedDriverName != null &&
         !conductores.any((c) => c['name'] == selectedDriverName)) {
       selectedDriverName = null;
@@ -73,12 +68,10 @@ class FleetManagementScreen extends StatelessWidget {
               key: formKey,
               child: SizedBox(
                 width: 360,
-                // 👇 AQUÍ ESTÁ LA CORRECCIÓN 👇
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Nombre
                       TextFormField(
                         controller: nameController,
                         decoration: const InputDecoration(
@@ -90,7 +83,6 @@ class FleetManagementScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
 
-                      // Patente
                       TextFormField(
                         controller: patenteController,
                         textCapitalization: TextCapitalization.characters,
@@ -103,7 +95,6 @@ class FleetManagementScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
 
-                      // Capacidad
                       TextFormField(
                         controller: weightController,
                         keyboardType: TextInputType.number,
@@ -116,7 +107,6 @@ class FleetManagementScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
 
-                      // ── Conductor Asignado ──────────────────────
                       if (loadError)
                         Container(
                           padding: const EdgeInsets.all(10),
@@ -147,7 +137,7 @@ class FleetManagementScreen extends StatelessWidget {
                         )
                       else
                         DropdownButtonFormField<String>(
-                          value: selectedDriverName, 
+                          value: selectedDriverName,
                           decoration: const InputDecoration(
                             labelText: 'Conductor Asignado',
                             prefixIcon: Icon(Icons.drive_eta_outlined),
@@ -191,7 +181,6 @@ class FleetManagementScreen extends StatelessWidget {
                               : null,
                         ),
 
-                      // Aviso si no hay conductores
                       if (!loadError && conductores.isEmpty) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -221,9 +210,9 @@ class FleetManagementScreen extends StatelessWidget {
                       ],
                     ],
                   ),
-                ), // Cierre del SingleChildScrollView
-              ), // Cierre del SizedBox
-            ), // Cierre del Form
+                ),
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -258,7 +247,6 @@ class FleetManagementScreen extends StatelessWidget {
     );
   }
 
-  // ── Build ──────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(

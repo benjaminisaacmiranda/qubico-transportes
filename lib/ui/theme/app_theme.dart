@@ -6,7 +6,6 @@ class AppTheme {
   static const Color backgroundColor = Color(0xFFF7F9FC);
   static const Color errorColor = Color(0xFFD32F2F);
 
-  // --- TEMA PARA EL ADMINISTRADOR ---
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     scaffoldBackgroundColor: backgroundColor,
@@ -73,21 +72,23 @@ class AppTheme {
     ),
   );
 
-  // --- TEMA EXCLUSIVO PARA EL CONDUCTOR (ALTO CONTRASTE / ACCESIBILIDAD EXTERIOR) ---
   static ThemeData driverTheme = ThemeData(
     useMaterial3: true,
-    scaffoldBackgroundColor: Colors.white, // Fondo ultra claro para evitar reflejos
+    scaffoldBackgroundColor: Colors.white,
     colorScheme: const ColorScheme.light(
-      primary: Colors.black,          // Texto y botones principales en Negro Puro
-      secondary: Color(0xFF0052CC),   // Azul intenso de alta visibilidad
+      primary: Colors.black,
+      secondary: Color(0xFF0052CC),
       surface: Colors.white,
       error: Color(0xFFB00020),
-      onPrimary: Colors.white,        // Texto sobre botones negros
-      onSurface: Colors.black,        // Texto sobre fondo blanco
+      onPrimary: Colors.white,
+      onSurface: Colors.black,
     ),
-    // Textos más grandes y oscuros
     textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+      bodyLarge: TextStyle(
+        color: Colors.black,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
       bodyMedium: TextStyle(color: Colors.black, fontSize: 16),
     ),
     appBarTheme: const AppBarTheme(
@@ -95,43 +96,44 @@ class AppTheme {
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
-      iconTheme: IconThemeData(color: Colors.white, size: 28), // Iconos de barra más grandes
+      iconTheme: IconThemeData(color: Colors.white, size: 28),
     ),
-    // Forzar a que los botones midan como MÍNIMO 44x44 en cualquier layout
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        minimumSize: const Size(44, 48), // Supera el estándar de 44x44 px
+        minimumSize: const Size(44, 48),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 2, // Sombra ligera para diferenciar el botón en exteriores
+        elevation: 2,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.black,
         backgroundColor: Colors.white,
-        side: const BorderSide(color: Colors.black, width: 2.5), // Borde grueso para ver con sol
+        side: const BorderSide(color: Colors.black, width: 2.5),
         minimumSize: const Size(44, 48),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
         textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     ),
-    // Asegurar que los IconButton respeten los 44x44 píxeles táctiles
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         minimumSize: const Size(44, 44),
-        iconSize: 28, // Icono interno más grande
+        iconSize: 28,
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: const Color(0xFFF2F2F2),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      labelStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+      labelStyle: const TextStyle(
+        color: Colors.black,
+        fontWeight: FontWeight.w600,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: Colors.black, width: 2),

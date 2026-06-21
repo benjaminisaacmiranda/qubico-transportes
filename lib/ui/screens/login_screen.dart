@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider; // 🎯 Oculta el de Firebase
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart'; 
+import 'package:provider/provider.dart';
 
 import '../theme/app_theme.dart';
 
@@ -25,7 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _canLogin = false;
 
-  // RNF-11: bloqueo tras 5 intentos fallidos, por correo, durante 5 minutos.
   static const int _maxAttempts = 5;
   static const Duration _lockoutDuration = Duration(minutes: 5);
   final Map<String, int> _failedAttempts = {};
@@ -54,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-Future<void> _login() async {
+  Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -73,7 +72,6 @@ Future<void> _login() async {
     }
 
     try {
-      // 🔐 Login con Firebase Auth
       final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -81,11 +79,9 @@ Future<void> _login() async {
 
       if (!mounted) return;
 
-      // Credenciales correctas: se limpia el contador de intentos fallidos.
       _failedAttempts.remove(email);
       _lockoutUntil.remove(email);
 
-      // 📦 Buscar datos en Firestore por UID
       final uid = cred.user!.uid;
 
       final doc = await FirebaseFirestore.instance
@@ -93,7 +89,6 @@ Future<void> _login() async {
           .doc(uid)
           .get();
 
-      // FIX: Validar que el widget siga vivo después del await a Firestore
       if (!mounted) return;
 
       if (!doc.exists) {
@@ -112,27 +107,26 @@ Future<void> _login() async {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Tu cuenta está desactivada. Contacta al administrador.'),
+            content: Text(
+              'Tu cuenta está desactivada. Contacta al administrador.',
+            ),
             backgroundColor: Colors.red,
           ),
         );
         return;
       }
 
-      // Cargar datos locales
       await context.read<ClientProvider>().fetchClients();
       await context.read<OrderProvider>().fetchOrders();
       await context.read<VehicleProvider>().fetchVehicles();
       await context.read<UserProvider>().fetchUsers();
 
-      // 🚀 Redirección por rol
       if (rol == 'admin') {
         context.go('/admin');
       } else {
         context.go('/home');
       }
     } on FirebaseAuthException {
-      // 🛑 OTRA PRECAUCIÓN: Validar mounted aquí también por si acaso
       if (!mounted) return;
 
       final attempts = (_failedAttempts[email] ?? 0) + 1;

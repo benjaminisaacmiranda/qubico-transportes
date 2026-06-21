@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-// 🎯 ENLACES RELATIVOS
 import '../models/user_model.dart';
 import '../services/database_service.dart';
 import '../services/security_service.dart';
@@ -20,14 +19,20 @@ class AuthProvider extends ChangeNotifier {
   bool get hasError => _errorMessage != null;
   String get currentUserId => _currentUser?.id ?? 'Sistema';
   String get currentUserName => _currentUser?.fullName ?? 'Usuario';
-  String get currentUserRole => _currentUser?.role.toString().split('.').last ?? '';
+  String get currentUserRole =>
+      _currentUser?.role.toString().split('.').last ?? '';
   bool get isAdmin => _currentUser?.role == UserRole.admin;
-  bool get isLocked => _lockoutUntil != null && DateTime.now().isBefore(_lockoutUntil!);
+  bool get isLocked =>
+      _lockoutUntil != null && DateTime.now().isBefore(_lockoutUntil!);
 
-  // 🔄 Agregamos el parámetro opcional 'isFirebaseVerified'
-  Future<bool> login(String email, String password, {bool isFirebaseVerified = false}) async {
+  Future<bool> login(
+    String email,
+    String password, {
+    bool isFirebaseVerified = false,
+  }) async {
     if (isLocked) {
-      _errorMessage = 'Cuenta bloqueada. Intente en ${_lockoutUntil!.difference(DateTime.now()).inMinutes + 1} minutos.';
+      _errorMessage =
+          'Cuenta bloqueada. Intente en ${_lockoutUntil!.difference(DateTime.now()).inMinutes + 1} minutos.';
       notifyListeners();
       return false;
     }
@@ -37,7 +42,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 🔍 Buscar usuario en la base de datos local SQLite
       final userData = await DatabaseService.instance.getUserByEmail(email);
 
       if (userData == null) {
@@ -47,16 +51,21 @@ class AuthProvider extends ChangeNotifier {
 
       final user = User.fromMap(userData);
       final storedPassword = userData['password'] as String? ?? '';
-
-      // Verificar si la contraseña coincide localmente
-      bool isPasswordValid = SecurityService.verifyPassword(password, storedPassword);
+      bool isPasswordValid = SecurityService.verifyPassword(
+        password,
+        storedPassword,
+      );
 
       if (!isPasswordValid) {
-        // 🛠️ SI FIREBASE YA DIJO QUE SÍ, CORREGIMOS EL HASH LOCAL DE INMEDIATO
         if (isFirebaseVerified) {
           final newHash = SecurityService.hashPassword(password);
-          await DatabaseService.instance.update('users', {'password': newHash}, 'id', user.id);
-          isPasswordValid = true; // Forzamos la aprobación local
+          await DatabaseService.instance.update(
+            'users',
+            {'password': newHash},
+            'id',
+            user.id,
+          );
+          isPasswordValid = true;
         } else {
           _handleFailedAttempt();
           return false;
@@ -82,9 +91,11 @@ class AuthProvider extends ChangeNotifier {
     _failedAttempts++;
     if (_failedAttempts >= _maxAttempts) {
       _lockoutUntil = DateTime.now().add(const Duration(minutes: 5));
-      _errorMessage = 'Demasiados intentos fallidos. Cuenta bloqueada por 5 minutos.';
+      _errorMessage =
+          'Demasiados intentos fallidos. Cuenta bloqueada por 5 minutos.';
     } else {
-      _errorMessage = 'Credenciales incorrectas. Intentos restantes: ${_maxAttempts - _failedAttempts}';
+      _errorMessage =
+          'Credenciales incorrectas. Intentos restantes: ${_maxAttempts - _failedAttempts}';
     }
     _isLoading = false;
     notifyListeners();

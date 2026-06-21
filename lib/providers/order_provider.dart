@@ -44,22 +44,20 @@ class OrderProvider with ChangeNotifier {
       'generatedAt': DateTime.now().toIso8601String(),
       'filePath': filePath,
     });
-    // RNF-07: conservar solo los 50 reportes más recientes en memoria.
     while (_generatedReports.length > _maxStoredReports) {
       _generatedReports.removeAt(0);
     }
     notifyListeners();
   }
 
-  /// Inicia un stream de Firestore. Llama esto desde initState de cada pantalla principal.
-  /// [isAdmin] = true trae todos los pedidos; false filtra por UID del conductor autenticado.
   void startListening({required bool isAdmin}) {
     _subscription?.cancel();
     _isLoading = true;
     notifyListeners();
 
-    Query<Map<String, dynamic>> query =
-        FirebaseFirestore.instance.collection('orders');
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection(
+      'orders',
+    );
 
     if (!isAdmin) {
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -70,15 +68,12 @@ class OrderProvider with ChangeNotifier {
 
     _subscription = query.snapshots().listen(
       (snapshot) {
-        _orders = snapshot.docs
-            .map((doc) => Order.fromFirestore(doc))
-            .toList();
+        _orders = snapshot.docs.map((doc) => Order.fromFirestore(doc)).toList();
         _sortOrders();
         _isLoading = false;
         notifyListeners();
       },
       onError: (e) {
-        debugPrint('Firestore orders stream error: $e');
         _errorMessage = 'Error al cargar pedidos: $e';
         _isLoading = false;
         notifyListeners();
@@ -86,7 +81,6 @@ class OrderProvider with ChangeNotifier {
     );
   }
 
-  /// Alias para compatibilidad con pantallas existentes que llaman fetchOrders().
   Future<void> fetchOrders({bool isAdmin = false}) async {
     startListening(isAdmin: isAdmin);
   }
@@ -129,7 +123,6 @@ class OrderProvider with ChangeNotifier {
         'new_value': 'Creado y asignado a ${order.driverId}',
       });
     } catch (e) {
-      debugPrint('Error in addOrder: $e');
       _errorMessage = 'Error al crear pedido: $e';
     } finally {
       _isLoading = false;
@@ -186,7 +179,6 @@ class OrderProvider with ChangeNotifier {
             newStatus + (incidentReason != null ? ' ($incidentReason)' : ''),
       });
     } catch (e) {
-      debugPrint('Error in updateOrderStatus: $e');
       _errorMessage = 'Error al actualizar estado: $e';
     } finally {
       _isLoading = false;
@@ -206,7 +198,6 @@ class OrderProvider with ChangeNotifier {
           .doc(order.id!)
           .set(order.toFirestore());
     } catch (e) {
-      debugPrint('Error in updateOrder: $e');
       _errorMessage = 'Error al actualizar pedido: $e';
     } finally {
       _isLoading = false;
@@ -230,7 +221,6 @@ class OrderProvider with ChangeNotifier {
         'new_value': 'Eliminado',
       });
     } catch (e) {
-      debugPrint('Error in deleteOrder: $e');
       _errorMessage = 'Error al eliminar pedido: $e';
     } finally {
       _isLoading = false;
@@ -239,7 +229,8 @@ class OrderProvider with ChangeNotifier {
   }
 
   Future<List<Map<String, dynamic>>> getAuditLogsForOrder(
-      String orderId) async {
+    String orderId,
+  ) async {
     try {
       final db = await DatabaseService.instance.database;
       final data = await db.query(

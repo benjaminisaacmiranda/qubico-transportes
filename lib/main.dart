@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'firebase_options.dart';
-import 'providers/auth_provider.dart'; // Importante importar tu AuthProvider
+import 'providers/auth_provider.dart';
 import 'providers/client_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/user_provider.dart';
@@ -28,7 +28,6 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        // Se añade AuthProvider para controlar la sesión y el rol de forma global
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
@@ -45,21 +44,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos context.watch para que la app se redibuje automáticamente cuando cambie el rol
     final authProvider = context.watch<AuthProvider>();
 
-    // Selección de tema dinámico según el rol detectado en la sesión activa
     ThemeData selectedTheme;
     if (authProvider.isLoggedIn) {
-      selectedTheme = authProvider.isAdmin ? AppTheme.lightTheme : AppTheme.driverTheme;
+      selectedTheme = authProvider.isAdmin
+          ? AppTheme.lightTheme
+          : AppTheme.driverTheme;
     } else {
-      selectedTheme = AppTheme.lightTheme; // Tema por defecto para el Login
+      selectedTheme = AppTheme.lightTheme;
     }
 
     return MaterialApp.router(
       title: 'Qúbico',
       debugShowCheckedModeBanner: false,
-      theme: selectedTheme, // Aplicando el tema dinámico calculado arriba
+      theme: selectedTheme,
       routerConfig: AppRouter.router,
     );
   }

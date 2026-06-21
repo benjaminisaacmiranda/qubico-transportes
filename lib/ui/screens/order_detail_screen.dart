@@ -71,8 +71,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  /// RNF-09: garantiza que la evidencia fotográfica no supere los 500KB,
-  /// reintentando la compresión con calidad decreciente si es necesario.
   Future<File> _ensureUnder500KB(File file) async {
     const maxBytes = 500 * 1024;
     var bytes = await file.readAsBytes();
@@ -148,12 +146,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         imageQuality: 50,
                       );
                       if (photo != null) {
-                        final compressed =
-                            await _ensureUnder500KB(File(photo.path));
+                        final compressed = await _ensureUnder500KB(
+                          File(photo.path),
+                        );
                         setDialogState(() => _capturedImage = compressed);
-                        setState(
-                          () => _capturedImage = compressed,
-                        ); // update main state too
+                        setState(() => _capturedImage = compressed);
                       }
                     },
                     icon: const Icon(Icons.camera_alt),
@@ -182,11 +179,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             imageQuality: 50,
                           );
                           if (photo != null) {
-                            final compressed =
-                                await _ensureUnder500KB(File(photo.path));
-                            setDialogState(
-                              () => _capturedImage = compressed,
+                            final compressed = await _ensureUnder500KB(
+                              File(photo.path),
                             );
+                            setDialogState(() => _capturedImage = compressed);
                           }
                         },
                         icon: const Icon(Icons.refresh),
@@ -268,7 +264,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Client Card
             Card(
               elevation: 0,
               shape: RoundedRectangleBorder(
@@ -298,8 +293,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Photo Evidence
             Row(
               children: const [
                 Icon(
@@ -373,8 +366,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
               ),
             const SizedBox(height: 24),
-
-            // Signature
             Row(
               children: const [
                 Icon(
@@ -463,10 +454,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ],
                 ),
               ),
-
             const SizedBox(height: 32),
-
-            // Action Buttons
             if (!isReadOnly) ...[
               OutlinedButton.icon(
                 onPressed: _showIncidentDialog,

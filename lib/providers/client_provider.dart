@@ -27,7 +27,6 @@ class ClientProvider with ChangeNotifier {
       final data = await DatabaseService.instance.queryAll('clients');
       _clients = data.map((e) => Client.fromMap(e)).toList();
     } catch (e) {
-      debugPrint('Error fetching clients: $e');
       _errorMessage = 'Error al cargar clientes: $e';
     } finally {
       _isLoading = false;
@@ -44,7 +43,6 @@ class ClientProvider with ChangeNotifier {
       await DatabaseService.instance.insert('clients', client.toMap());
       await fetchClients();
     } catch (e) {
-      debugPrint('Error adding client: $e');
       _errorMessage = 'Error al agregar cliente: $e';
       _isLoading = false;
       notifyListeners();
@@ -65,7 +63,6 @@ class ClientProvider with ChangeNotifier {
       );
       await fetchClients();
     } catch (e) {
-      debugPrint('Error updating client: $e');
       _errorMessage = 'Error al actualizar cliente: $e';
       _isLoading = false;
       notifyListeners();
@@ -78,7 +75,6 @@ class ClientProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // El rut almacenado en la BD está encriptado, hay que encriptar antes de buscar
       await DatabaseService.instance.delete(
         'clients',
         'rut',
@@ -86,14 +82,12 @@ class ClientProvider with ChangeNotifier {
       );
       await fetchClients();
     } catch (e) {
-      debugPrint('Error deleting client: $e');
       _errorMessage = 'Error al eliminar cliente: $e';
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Search clients by name, email, or RUT (case-insensitive)
   List<Client> searchClients(String query) {
     if (query.isEmpty) return List.unmodifiable(_clients);
     final lowerQuery = query.toLowerCase();

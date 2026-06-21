@@ -42,12 +42,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
   }
 
-void _editOrder(Order order) {
-    // 1. Primero cambiamos a la pestaña para garantizar que esté en el árbol visible y activa
+  void _editOrder(Order order) {
     setState(() {
-      _currentIndex = 2; // Navegamos a la pestaña "Nuevo"
+      _currentIndex = 2;
     });
-    // 2. Esperamos a que Flutter termine de dibujar el frame actual para pasar los datos
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _nuevoTabKey.currentState?.loadOrderForEdit(order);
     });
@@ -102,9 +100,7 @@ void _editOrder(Order order) {
                   key: _nuevoTabKey,
                   onOrderSaved: _navigateToInicio,
                 ),
-                HistorialTab(
-                  onEditOrder: _editOrder,
-                ),
+                HistorialTab(onEditOrder: _editOrder),
                 const AjustesTab(),
               ],
             ),
@@ -216,10 +212,7 @@ void _editOrder(Order order) {
                   const SizedBox(height: 2),
                   Text(
                     role == 'admin' ? 'Administrador' : role,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ],
               ),

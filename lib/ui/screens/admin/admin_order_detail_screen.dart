@@ -49,17 +49,13 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         ? widget.order.clientPhone
         : 'No disponible';
 
-    // Fetch Vehicle & Driver info
     Vehicle? vehicle;
     try {
       vehicle = vehicleProvider.vehicles.firstWhere(
         (v) => v.driverName == widget.order.driverId,
       );
-    } catch (_) {
-      // fallback
-    }
+    } catch (_) {}
 
-    // 3. Status branding
     Color statusColor;
     Color statusBg;
     IconData statusIcon;
@@ -117,7 +113,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status Banner
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -163,7 +158,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                       ],
                     ),
                   ),
-                  // Decrypted ID Badge
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -194,7 +188,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Card 1: Client details (Decrypted)
             _buildSectionHeader(
               'INFORMACIÓN DEL CLIENTE',
               Icons.person_outline,
@@ -272,8 +265,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Card 2: Logistics / Route Assignment
             _buildSectionHeader(
               'ASIGNACIÓN LOGÍSTICA',
               Icons.local_shipping_outlined,
@@ -314,8 +305,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Card 3: Package details & Load Specs
             _buildSectionHeader(
               'ESPECIFICACIONES DE LA CARGA',
               Icons.inventory_2_outlined,
@@ -384,8 +373,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Card 4: Proof of Delivery (if completed / incident)
             if (widget.order.status == 'Entregado' ||
                 widget.order.status == 'Incidencia') ...[
               _buildSectionHeader(
@@ -564,8 +551,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
               ),
               const SizedBox(height: 20),
             ],
-
-            // Card 5: Real-time Audit Timeline (Bitácora de Eventos)
             _buildSectionHeader(
               'BITÁCORA DE EVENTOS (TIEMPO REAL)',
               Icons.history,
@@ -605,8 +590,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       ),
     );
   }
-
-  // ==================== WIDGET BUILDERS ====================
 
   Widget _buildSectionHeader(String label, IconData icon) {
     return Padding(
@@ -708,7 +691,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Indicator & Line
           Column(
             children: [
               Container(
@@ -723,7 +705,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
             ],
           ),
           const SizedBox(width: 16),
-          // Content
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 16),

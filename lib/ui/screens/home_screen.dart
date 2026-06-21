@@ -1,4 +1,3 @@
-//Hoja de ruta (Pantalla conductor)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,7 +11,7 @@ import '../../providers/order_provider.dart';
 import '../../providers/vehicle_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/connectivity_banner.dart';
-import 'login_screen.dart';
+
 import 'map_screen.dart';
 import 'order_detail_screen.dart';
 
@@ -42,7 +41,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadCurrentUser() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
     if (doc.exists && mounted) {
       final data = doc.data()!;
       setState(() {
@@ -60,20 +62,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos el tema dinámico según el rol
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface == Colors.white ? const Color(0xFFF2F2F2) : Colors.grey[100],
+      backgroundColor: colorScheme.surface == Colors.white
+          ? const Color(0xFFF2F2F2)
+          : Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: colorScheme.primary, // Adaptativo (Negro en Conductor, Azul en Admin)
+        backgroundColor: colorScheme.primary,
         elevation: 0,
         leading: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Icon(
             Icons.local_shipping,
-            color: colorScheme.secondary, // Adaptativo (Azul intenso o Naranja)
+            color: colorScheme.secondary,
             size: 28,
           ),
         ),
@@ -85,7 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: colorScheme.onPrimary,
           ),
         ),
-          actions: [
+        actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
@@ -118,16 +121,27 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: (index) => setState(() => _currentIndex = index),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: colorScheme.secondary,
-        unselectedItemColor: colorScheme.surface == Colors.white ? Colors.black54 : Colors.grey,
+        unselectedItemColor: colorScheme.surface == Colors.white
+            ? Colors.black54
+            : Colors.grey,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: 13, // Ligeramente más grande para lectura en exteriores
+          fontSize: 13,
         ),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.location_on, size: 26), label: 'Ruta'),
-          BottomNavigationBarItem(icon: Icon(Icons.inventory_2, size: 26), label: 'Cargas'),
-          BottomNavigationBarItem(icon: Icon(Icons.person, size: 26), label: 'Perfil'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.location_on, size: 26),
+            label: 'Ruta',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2, size: 26),
+            label: 'Cargas',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person, size: 26),
+            label: 'Perfil',
+          ),
         ],
       ),
     );
@@ -210,8 +224,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ==================== TABS ====================
-
   Widget _buildRutaTab(BuildContext context) {
     return Column(
       children: [
@@ -252,9 +264,17 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final activeOrders = todaysOrders.where((o) => o.status != 'Entregado').toList();
-    final totalWeight = activeOrders.fold<double>(0.0, (sum, order) => sum + order.weight);
-    final capacityPercentage = (totalWeight / assignedVehicle.maxWeight).clamp(0.0, 1.0);
+    final activeOrders = todaysOrders
+        .where((o) => o.status != 'Entregado')
+        .toList();
+    final totalWeight = activeOrders.fold<double>(
+      0.0,
+      (sum, order) => sum + order.weight,
+    );
+    final capacityPercentage = (totalWeight / assignedVehicle.maxWeight).clamp(
+      0.0,
+      1.0,
+    );
 
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -274,7 +294,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: colorScheme.surface == Colors.white ? Colors.black38 : Colors.grey[200]!, width: 1.5),
+                  side: BorderSide(
+                    color: colorScheme.surface == Colors.white
+                        ? Colors.black38
+                        : Colors.grey[200]!,
+                    width: 1.5,
+                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -297,7 +322,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: colorScheme.primary.withOpacity(0.12),
                                   borderRadius: BorderRadius.circular(6),
@@ -327,7 +355,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           Text(
                             'Capacidad Utilizada',
                             style: TextStyle(
-                              color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
+                              color: colorScheme.surface == Colors.white
+                                  ? Colors.black87
+                                  : Colors.grey,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -335,7 +365,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             '${(capacityPercentage * 100).toStringAsFixed(1)}%',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: capacityPercentage > 0.9 ? colorScheme.error : colorScheme.primary,
+                              color: capacityPercentage > 0.9
+                                  ? colorScheme.error
+                                  : colorScheme.primary,
                             ),
                           ),
                         ],
@@ -360,7 +392,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         'Carga total actual: ${totalWeight.toStringAsFixed(1)} kg. Límite máximo: ${assignedVehicle.maxWeight.toStringAsFixed(1)} kg.',
                         style: TextStyle(
-                          color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
+                          color: colorScheme.surface == Colors.white
+                              ? Colors.black87
+                              : Colors.grey,
                           fontSize: 12,
                         ),
                       ),
@@ -377,7 +411,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 1.2,
-                    color: colorScheme.surface == Colors.white ? Colors.black : Colors.grey,
+                    color: colorScheme.surface == Colors.white
+                        ? Colors.black
+                        : Colors.grey,
                   ),
                 ),
               ),
@@ -392,7 +428,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 )
               else
-                ...todaysOrders.map((order) => _buildCargoItemCard(context, order)),
+                ...todaysOrders.map(
+                  (order) => _buildCargoItemCard(context, order),
+                ),
             ],
           ),
         ),
@@ -412,9 +450,15 @@ class _HomeScreenState extends State<HomeScreen> {
         )
         .toList();
 
-    final deliveredCount = todaysOrders.where((o) => o.status == 'Entregado').length;
-    final inRouteCount = todaysOrders.where((o) => o.status == 'En camino').length;
-    final incidentsCount = todaysOrders.where((o) => o.status == 'Incidencia').length;
+    final deliveredCount = todaysOrders
+        .where((o) => o.status == 'Entregado')
+        .length;
+    final inRouteCount = todaysOrders
+        .where((o) => o.status == 'En camino')
+        .length;
+    final incidentsCount = todaysOrders
+        .where((o) => o.status == 'Incidencia')
+        .length;
 
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -433,7 +477,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: colorScheme.surface == Colors.white ? Colors.black38 : Colors.grey[200]!, width: 1.5),
+                  side: BorderSide(
+                    color: colorScheme.surface == Colors.white
+                        ? Colors.black38
+                        : Colors.grey[200]!,
+                    width: 1.5,
+                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -443,13 +492,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         radius: 36,
                         backgroundColor: colorScheme.primary.withOpacity(0.12),
                         child: Text(
-                          _currentUserName != null && _currentUserName!.isNotEmpty
+                          _currentUserName != null &&
+                                  _currentUserName!.isNotEmpty
                               ? _currentUserName!
-                                  .split(' ')
-                                  .where((w) => w.isNotEmpty)
-                                  .take(2)
-                                  .map((w) => w[0].toUpperCase())
-                                  .join()
+                                    .split(' ')
+                                    .where((w) => w.isNotEmpty)
+                                    .take(2)
+                                    .map((w) => w[0].toUpperCase())
+                                    .join()
                               : '?',
                           style: TextStyle(
                             fontSize: 24,
@@ -475,7 +525,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'RUT: ${_currentUserRut ?? '-'}',
                               style: TextStyle(
-                                color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
+                                color: colorScheme.surface == Colors.white
+                                    ? Colors.black87
+                                    : Colors.grey,
                                 fontSize: 13,
                               ),
                             ),
@@ -483,7 +535,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               _currentUserEmail ?? '-',
                               style: TextStyle(
-                                color: colorScheme.surface == Colors.white ? Colors.black87 : Colors.grey,
+                                color: colorScheme.surface == Colors.white
+                                    ? Colors.black87
+                                    : Colors.grey,
                                 fontSize: 13,
                               ),
                             ),
@@ -503,7 +557,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     letterSpacing: 1.2,
-                    color: colorScheme.surface == Colors.white ? Colors.black : Colors.grey,
+                    color: colorScheme.surface == Colors.white
+                        ? Colors.black
+                        : Colors.grey,
                   ),
                 ),
               ),
@@ -515,31 +571,60 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 children: [
-                  _buildStatItem(context, 'Asignadas', '${todaysOrders.length}', Icons.assignment_outlined, Colors.blue[800]!),
-                  _buildStatItem(context, 'Entregadas', '$deliveredCount', Icons.check_circle_outline, Colors.green[700]!),
-                  _buildStatItem(context, 'En Tránsito', '$inRouteCount', Icons.local_shipping_outlined, colorScheme.secondary),
-                  _buildStatItem(context, 'Incidencias', '$incidentsCount', Icons.warning_amber_rounded, colorScheme.error),
+                  _buildStatItem(
+                    context,
+                    'Asignadas',
+                    '${todaysOrders.length}',
+                    Icons.assignment_outlined,
+                    Colors.blue[800]!,
+                  ),
+                  _buildStatItem(
+                    context,
+                    'Entregadas',
+                    '$deliveredCount',
+                    Icons.check_circle_outline,
+                    Colors.green[700]!,
+                  ),
+                  _buildStatItem(
+                    context,
+                    'En Tránsito',
+                    '$inRouteCount',
+                    Icons.local_shipping_outlined,
+                    colorScheme.secondary,
+                  ),
+                  _buildStatItem(
+                    context,
+                    'Incidencias',
+                    '$incidentsCount',
+                    Icons.warning_amber_rounded,
+                    colorScheme.error,
+                  ),
                 ],
               ),
               const SizedBox(height: 32),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ElevatedButton.icon(
-                  onPressed: () async { // <-- Agrega async
-                    await FirebaseAuth.instance.signOut(); // <-- Agrega esto
+                  onPressed: () async {
+                    await FirebaseAuth.instance.signOut();
                     if (context.mounted) {
-                      context.go('/login'); // <-- Cambia el Navigator por esto
+                      context.go('/login');
                     }
                   },
                   icon: const Icon(Icons.logout, color: Colors.white),
                   label: const Text(
                     'Cerrar Sesión',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.error,
-                    minimumSize: const Size(double.infinity, 48), // Cumple con los 44px táctiles
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -550,8 +635,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
-
-  // ==================== SUB-WIDGETS & BUILDERS ====================
 
   Widget _buildHeader(
     BuildContext context, {
@@ -569,14 +652,27 @@ class _HomeScreenState extends State<HomeScreen> {
         )
         .toList();
 
-    final List<String> months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    final List<String> months = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
     final dateStr = '${today.day} ${months[today.month - 1]}';
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       padding: const EdgeInsets.only(top: 24, left: 24, right: 24, bottom: 24),
       decoration: BoxDecoration(
-        color: colorScheme.primary, // Cambia dinámicamente
+        color: colorScheme.primary,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
@@ -589,22 +685,32 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               GestureDetector(
-                onTap: () async { // <-- Agrega async
-                  await FirebaseAuth.instance.signOut(); // <-- Agrega esto
+                onTap: () async {
+                  await FirebaseAuth.instance.signOut();
                   if (context.mounted) {
-                    context.go('/login'); // <-- Cambia el Navigator por esto
+                    context.go('/login');
                   }
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8.0,
+                    horizontal: 4.0,
+                  ),
                   child: Text(
                     'Cerrar App',
-                    style: TextStyle(color: colorScheme.onPrimary.withOpacity(0.85), fontSize: 15, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: colorScheme.onPrimary.withOpacity(0.85),
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: colorScheme.onPrimary.withOpacity(0.25),
                   borderRadius: BorderRadius.circular(12),
@@ -632,7 +738,10 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 4),
           Text(
             subtitleBuilder(todaysOrders),
-            style: TextStyle(color: colorScheme.onPrimary.withOpacity(0.85), fontSize: 15),
+            style: TextStyle(
+              color: colorScheme.onPrimary.withOpacity(0.85),
+              fontSize: 15,
+            ),
           ),
         ],
       ),
@@ -651,7 +760,8 @@ class _HomeScreenState extends State<HomeScreen> {
         )
         .toList();
 
-    if (provider.isLoading) return const Center(child: CircularProgressIndicator());
+    if (provider.isLoading)
+      return const Center(child: CircularProgressIndicator());
     if (todaysOrders.isEmpty) {
       return const Center(
         child: Text(
@@ -661,7 +771,9 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    int nextOrderIndex = todaysOrders.indexWhere((o) => o.status == 'Pendiente' || o.status == 'En camino');
+    int nextOrderIndex = todaysOrders.indexWhere(
+      (o) => o.status == 'Pendiente' || o.status == 'En camino',
+    );
     final colorScheme = Theme.of(context).colorScheme;
 
     return ListView.builder(
@@ -684,7 +796,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isNext ? colorScheme.secondary : Colors.grey[400]!,
+                        color: isNext
+                            ? colorScheme.secondary
+                            : Colors.grey[400]!,
                         width: 4,
                       ),
                       color: Colors.white,
@@ -720,8 +834,10 @@ class _HomeScreenState extends State<HomeScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isNext
-            ? BorderSide(color: colorScheme.secondary, width: 2.5) // Borde más marcado
-            : BorderSide(color: isHighContrast ? Colors.black26 : Colors.transparent),
+            ? BorderSide(color: colorScheme.secondary, width: 2.5)
+            : BorderSide(
+                color: isHighContrast ? Colors.black26 : Colors.transparent,
+              ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,7 +859,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'PRÓXIMO DESPACHO',
                     style: TextStyle(
-                      color: colorScheme.secondary == Colors.black ? Colors.white : Colors.white,
+                      color: colorScheme.secondary == Colors.black
+                          ? Colors.white
+                          : Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                       letterSpacing: 1,
@@ -763,10 +881,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        order.clientName.isNotEmpty ? order.clientName : order.clientId,
+                        order.clientName.isNotEmpty
+                            ? order.clientName
+                            : order.clientId,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 17, // Legibilidad aumentada
+                          fontSize: 17,
                           color: colorScheme.onSurface,
                         ),
                       ),
@@ -777,15 +897,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.location_on_outlined, size: 18, color: colorScheme.primary),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 18,
+                      color: colorScheme.primary,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         order.address,
                         style: TextStyle(
-                          color: isHighContrast ? Colors.black : Colors.grey[800],
+                          color: isHighContrast
+                              ? Colors.black
+                              : Colors.grey[800],
                           fontSize: 14,
-                          fontWeight: isHighContrast ? FontWeight.w500 : FontWeight.normal,
+                          fontWeight: isHighContrast
+                              ? FontWeight.w500
+                              : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -793,21 +921,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
-                    color: isHighContrast ? const Color(0xFFEAA100).withOpacity(0.15) : Colors.blue[50],
+                    color: isHighContrast
+                        ? const Color(0xFFEAA100).withOpacity(0.15)
+                        : Colors.blue[50],
                     borderRadius: BorderRadius.circular(8),
-                    border: isHighContrast ? Border.all(color: Colors.black45) : null,
+                    border: isHighContrast
+                        ? Border.all(color: Colors.black45)
+                        : null,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.access_time, size: 16, color: isHighContrast ? Colors.black : colorScheme.primary),
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: isHighContrast
+                            ? Colors.black
+                            : colorScheme.primary,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         order.timeWindow,
                         style: TextStyle(
-                          color: isHighContrast ? Colors.black : colorScheme.primary,
+                          color: isHighContrast
+                              ? Colors.black
+                              : colorScheme.primary,
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
                         ),
@@ -816,7 +959,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Botones con altura mínima forzada a 48px para cumplir holgadamente los 44px requeridos
                 Row(
                   children: [
                     Expanded(
@@ -826,10 +968,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: const Text('Llamar'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: colorScheme.onSurface,
-                          side: BorderSide(color: colorScheme.onSurface, width: 2),
-                          backgroundColor: isHighContrast ? Colors.white : Colors.blue[50],
-                          minimumSize: const Size(0, 48), 
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          side: BorderSide(
+                            color: colorScheme.onSurface,
+                            width: 2,
+                          ),
+                          backgroundColor: isHighContrast
+                              ? Colors.white
+                              : Colors.blue[50],
+                          minimumSize: const Size(0, 48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
@@ -837,24 +986,51 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          if (order.status == 'Entregado' || order.status == 'Incidencia') {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)));
+                          if (order.status == 'Entregado' ||
+                              order.status == 'Incidencia') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderDetailScreen(order: order),
+                              ),
+                            );
                           } else if (order.status == 'Pendiente') {
-                            context.read<OrderProvider>().updateOrderStatus(order.id!, 'En camino');
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => MapScreen(selectedOrder: order)));
+                            context.read<OrderProvider>().updateOrderStatus(
+                              order.id!,
+                              'En camino',
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MapScreen(selectedOrder: order),
+                              ),
+                            );
                           } else if (order.status == 'En camino') {
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(order: order)));
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OrderDetailScreen(order: order),
+                              ),
+                            );
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isNext ? colorScheme.secondary : colorScheme.primary,
+                          backgroundColor: isNext
+                              ? colorScheme.secondary
+                              : colorScheme.primary,
                           foregroundColor: colorScheme.onPrimary,
                           minimumSize: const Size(0, 48),
-                          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: Text(
-                          (order.status == 'Entregado' || order.status == 'Incidencia')
+                          (order.status == 'Entregado' ||
+                                  order.status == 'Incidencia')
                               ? 'Ver Resumen'
                               : (order.status == 'Pendiente')
                               ? 'Iniciar Entrega'
@@ -875,17 +1051,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCargoItemCard(BuildContext context, Order order) {
     final colorScheme = Theme.of(context).colorScheme;
     final isHighContrast = colorScheme.surface == Colors.white;
-    
+
     Color badgeColor = colorScheme.primary;
-    if (order.loadType == 'Construcción') badgeColor = isHighContrast ? Colors.black : AppTheme.accentOrange;
-    if (order.loadType == 'Eventos') badgeColor = isHighContrast ? Colors.black : Colors.purple;
+    if (order.loadType == 'Construcción')
+      badgeColor = isHighContrast ? Colors.black : AppTheme.accentOrange;
+    if (order.loadType == 'Eventos')
+      badgeColor = isHighContrast ? Colors.black : Colors.purple;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: isHighContrast ? Colors.black45 : Colors.grey[200]!, width: isHighContrast ? 1.5 : 1),
+        side: BorderSide(
+          color: isHighContrast ? Colors.black45 : Colors.grey[200]!,
+          width: isHighContrast ? 1.5 : 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -906,11 +1087,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(6),
-                    border: isHighContrast ? Border.all(color: Colors.black) : null,
+                    border: isHighContrast
+                        ? Border.all(color: Colors.black)
+                        : null,
                   ),
                   child: Text(
                     order.loadType,
@@ -926,39 +1112,69 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.fitness_center_outlined, size: 18, color: colorScheme.primary),
+                Icon(
+                  Icons.fitness_center_outlined,
+                  size: 18,
+                  color: colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
-                Text('Peso: ', style: TextStyle(color: isHighContrast ? Colors.black87 : Colors.grey)),
+                Text(
+                  'Peso: ',
+                  style: TextStyle(
+                    color: isHighContrast ? Colors.black87 : Colors.grey,
+                  ),
+                ),
                 Text(
                   '${order.weight} kg',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                Icon(Icons.straighten_outlined, size: 18, color: colorScheme.primary),
+                Icon(
+                  Icons.straighten_outlined,
+                  size: 18,
+                  color: colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
-                Text('Dim: ', style: TextStyle(color: isHighContrast ? Colors.black87 : Colors.grey)),
+                Text(
+                  'Dim: ',
+                  style: TextStyle(
+                    color: isHighContrast ? Colors.black87 : Colors.grey,
+                  ),
+                ),
                 Text(
                   '${order.length} x ${order.width} x ${order.height} m',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                Icon(Icons.location_on_outlined, size: 18, color: colorScheme.primary),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 18,
+                  color: colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     order.address,
                     style: TextStyle(
-                      color: isHighContrast ? Colors.black : Colors.grey[700], 
+                      color: isHighContrast ? Colors.black : Colors.grey[700],
                       fontSize: 13,
-                      fontWeight: isHighContrast ? FontWeight.w500 : FontWeight.normal,
+                      fontWeight: isHighContrast
+                          ? FontWeight.w500
+                          : FontWeight.normal,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -972,7 +1188,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildStatusBadge(BuildContext context, String status) {
-    final isHighContrast = Theme.of(context).colorScheme.surface == Colors.white;
+    final isHighContrast =
+        Theme.of(context).colorScheme.surface == Colors.white;
     Color badgeColor;
     switch (status) {
       case 'Entregado':
@@ -1020,7 +1237,10 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: isHighContrast ? Colors.black45 : Colors.grey[200]!, width: isHighContrast ? 1.5 : 1),
+        side: BorderSide(
+          color: isHighContrast ? Colors.black45 : Colors.grey[200]!,
+          width: isHighContrast ? 1.5 : 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1041,9 +1261,11 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               label,
               style: TextStyle(
-                color: isHighContrast ? Colors.black87 : Colors.grey[700], 
+                color: isHighContrast ? Colors.black87 : Colors.grey[700],
                 fontSize: 12,
-                fontWeight: isHighContrast ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isHighContrast
+                    ? FontWeight.bold
+                    : FontWeight.normal,
               ),
               textAlign: TextAlign.center,
             ),

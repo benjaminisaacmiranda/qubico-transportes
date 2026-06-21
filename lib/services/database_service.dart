@@ -20,33 +20,21 @@ class DatabaseService {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    print('DEBUG QUBICO: Initializing database at path: $path');
 
     return await openDatabase(
       path,
       version: 7,
       onCreate: (db, version) async {
-        print('DEBUG QUBICO: onCreate triggered for version $version');
         await _createDB(db, version);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        print(
-          'DEBUG QUBICO: onUpgrade triggered from $oldVersion to $newVersion',
-        );
         if (oldVersion < 5) {
-          print(
-            'DEBUG QUBICO: Purging older tables to upgrade schema to v5...',
-          );
           await db.execute('DROP TABLE IF EXISTS orders');
           await db.execute('DROP TABLE IF EXISTS clients');
           await db.execute('DROP TABLE IF EXISTS users');
           await db.execute('DROP TABLE IF EXISTS vehicles');
           await db.execute('DROP TABLE IF EXISTS audit_logs');
-          print(
-            'DEBUG QUBICO: All older tables dropped. Recreating with v5...',
-          );
           await _createDB(db, 5);
-          print('DEBUG QUBICO: Recreated database successfully for v5.');
         }
         if (oldVersion < 7) {
           await db.execute('''
@@ -131,15 +119,13 @@ class DatabaseService {
       )
     ''');
 
-    // Seed default data inside a fast batch transaction
     final batch = db.batch();
 
-    // Default Users (Juan Perez is Conductor, Admin is Admin)
     batch.insert('users', {
       'id': '12345678-9',
       'full_name': 'Juan Perez',
-      'email': 'conductor@qubico.cl', //
-      'password': SecurityService.hashPassword('conductor123'), //
+      'email': 'conductor@qubico.cl',
+      'password': SecurityService.hashPassword('conductor123'),
       'role': 'conductor',
       'is_active': 1,
     });
@@ -148,12 +134,11 @@ class DatabaseService {
       'id': '98765432-1',
       'full_name': 'Admin',
       'email': 'admin@qubico.cl',
-      'password': SecurityService.hashPassword('admin123'), //
+      'password': SecurityService.hashPassword('admin123'),
       'role': 'admin',
       'is_active': 1,
     });
 
-    // Default Clients
     batch.insert('clients', {
       'rut': '12.345.678-9',
       'name': 'Empresa Alpha',
@@ -169,7 +154,6 @@ class DatabaseService {
       'billing_address': 'Las Condes 456',
     });
 
-    // Default Vehicles aligned with active Conductor names
     batch.insert('vehicles', {
       'name': 'Furgón Pequeño',
       'patente': 'AB-CD-12',
@@ -183,12 +167,9 @@ class DatabaseService {
       'driver_name': 'Conductor 2',
     });
 
-    print('DEBUG QUBICO: Committing seed data batch...');
     await batch.commit(noResult: true);
-    print('DEBUG QUBICO: Seed data batch committed successfully.');
   }
 
-  // Generic methods for CRUD
   Future<int> insert(String table, Map<String, dynamic> data) async {
     final db = await instance.database;
     return await db.insert(
@@ -203,20 +184,19 @@ class DatabaseService {
     return await db.query(table);
   }
 
-  // Buscar un usuario específico por su correo electrónico
   Future<Map<String, dynamic>?> getUserByEmail(String email) async {
     final db = await instance.database;
     final result = await db.query(
       'users',
       where: 'email = ?',
       whereArgs: [email],
-      limit: 1, // Solo queremos un usuario
+      limit: 1,
     );
 
     if (result.isNotEmpty) {
-      return result.first; // Retorna el mapa con los datos del usuario
+      return result.first;
     }
-    return null; // Si no existe el correo, retorna nulo
+    return null;
   }
 
   Future<int> update(
